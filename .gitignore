@@ -27,5 +27,4 @@ Thumbs.db
 *.zip
 
 # Deployment Scripts
-release.yml
-obfuscator.py
+
