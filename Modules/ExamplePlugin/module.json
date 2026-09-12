@@ -1,0 +1,12 @@
+{
+    "name": "ExamplePlugin",
+    "alias": "exampleplugin",
+    "description": "An example base plugin that registers to the dashboard.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\ExamplePlugin\\Providers\\ExamplePluginServiceProvider"
+    ],
+    "panel": "dashboard",
+    "requires": []
+}

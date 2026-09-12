@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin Development Guide - ERP System</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; background: #f9fafb; }
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        h1, h2, h3 { color: #111827; }
+        h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+        code { background: #f3f4f6; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9em; color: #db2777; }
+        pre { background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+        pre code { background: none; color: inherit; padding: 0; }
+        .alert { padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+        .alert-info { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+        .alert-warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ERP System: Plugin Development Guide</h1>
+        <p>This guide explains how to build, configure, and install plugins for your ERP system using the new Modular Architecture.</p>
+
+        <h2>1. The Architecture</h2>
+        <p>Your ERP uses <code>nwidart/laravel-modules</code>. Every plugin is a completely isolated miniature Laravel application living inside the <code>Modules/</code> directory. A plugin has its own Models, Controllers, Filament Resources, and Migrations.</p>
+
+        <h2>2. Creating a New Plugin (Locally)</h2>
+        <p>To generate a new plugin scaffold while developing locally, run this command in your terminal:</p>
+        <pre><code>docker exec erp-system-app-1 php artisan module:make MyNewPlugin</code></pre>
+        <p>This will generate a folder at <code>Modules/MyNewPlugin</code>.</p>
+
+        <h2>3. Targeting the Dashboard vs. Admin Panel</h2>
+        <p>By default, if you create a Filament Resource inside your plugin (e.g., <code>Modules/MyNewPlugin/Filament/Resources/InvoiceResource.php</code>), it will automatically register to the <strong>Admin</strong> panel.</p>
+        <p>If you want the plugin's pages and resources to show up in the <strong>Dashboard</strong> panel for regular users, you must edit the <code>module.json</code> file located at the root of your plugin directory and add <code>"panel": "dashboard"</code>:</p>
+        
+        <pre><code>{
+    "name": "MyNewPlugin",
+    "alias": "mynewplugin",
+    "panel": "dashboard",
+    "requires": []
+}</code></pre>
+
+        <h2>4. Plugin Dependencies</h2>
+        <p>If your plugin relies on another plugin to function (for example, an <i>InvoicePlugin</i> requires the <i>CalendarPlugin</i>), you can enforce this in the <code>module.json</code> using the <code>requires</code> array.</p>
+        <pre><code>{
+    "name": "InvoicePlugin",
+    "requires": ["CalendarPlugin"]
+}</code></pre>
+        <p>The <strong>Plugin Manager UI</strong> will actively prevent the InvoicePlugin from being enabled if CalendarPlugin is not installed or is currently disabled.</p>
+
+        <h2>5. Packaging & Installation</h2>
+        <p>Once you have finished developing a plugin locally, you can package it for distribution or installation on the production server:</p>
+        <ol>
+            <li>Zip the plugin folder (e.g., compress <code>Modules/MyNewPlugin/</code> into <code>MyNewPlugin.zip</code>).</li>
+            <li>Go to the <strong>Admin Panel &gt; System &gt; Plugin Manager</strong>.</li>
+            <li>Click <strong>Upload Plugin (.zip)</strong>.</li>
+            <li>The system will automatically extract it, register the classes, and list it in the table.</li>
+            <li>Click the green <strong>Enable</strong> button to automatically run the plugin's database migrations and activate it.</li>
+        </ol>
+
+        <div class="alert alert-info">
+            <strong>Example Plugin:</strong> I have generated a fully working example plugin for you called <code>ExamplePlugin.zip</code>. It is located in the root directory of your project folder (<code>D:\Projects\erp-system\ExamplePlugin.zip</code>). You can test the system right now by uploading this ZIP file via the Plugin Manager!
+        </div>
+    </div>
+</body>
+</html>
