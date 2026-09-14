@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets;
+namespace App\Filament\BackupWidgets;
 
 class AutoBackupTableWidget extends BackupTableWidget
 {

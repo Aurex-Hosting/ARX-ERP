@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets;
+namespace App\Filament\BackupWidgets;
 
 use App\Models\BackupFile;
 use Filament\Tables;

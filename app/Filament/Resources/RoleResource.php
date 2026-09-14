@@ -41,13 +41,19 @@ class RoleResource extends Resource implements HasShieldPermissions
             'widget_AutoBackupTableWidget' => 'Auto Backups Widget',
         ];
 
+                $licensePermissions = [
+            "view_license_status" => "View License Status",
+        ];
+
         $updaterPermissions = [
             'page_SystemUpdater' => 'Access System Updater',
+            'check_updates' => 'Check Updates',
             'execute_update' => 'Install Updates',
+            'rollback_updates' => 'Rollback Updates',
         ];
 
         $pageOptions = collect(static::getPageOptions())
-            ->except(['page_BackupManager', 'page_SystemUpdater'])
+            ->except(["page_BackupManager", "page_SystemUpdater", "view_license_status", "page_LicenseStatus"])
             ->toArray();
             
         $widgetOptions = collect(static::getWidgetOptions())
@@ -55,7 +61,7 @@ class RoleResource extends Resource implements HasShieldPermissions
             ->toArray();
             
         $customOptions = collect(static::getCustomPermissionOptions())
-            ->except(array_merge(array_keys($backupPermissions), array_keys($updaterPermissions)))
+            ->except(array_merge(array_keys($backupPermissions), array_keys($updaterPermissions), array_keys($licensePermissions)))
             ->toArray();
 
         $resourceSchemas = static::getResourceEntitiesSchema() ?? [];
@@ -69,7 +75,7 @@ class RoleResource extends Resource implements HasShieldPermissions
             ])
             ->columnSpan(static::shield()->getSectionColumnSpan());
 
-        $resourceSchemas[] = Forms\Components\Section::make('System Updater')
+                $resourceSchemas[] = Forms\Components\Section::make('System Updater')
             ->description('Manage system update permissions')
             ->compact()
             ->collapsible()
@@ -78,11 +84,20 @@ class RoleResource extends Resource implements HasShieldPermissions
             ])
             ->columnSpan(static::shield()->getSectionColumnSpan());
 
+        $resourceSchemas[] = Forms\Components\Section::make('License Manager')
+            ->description('Manage license information access')
+            ->compact()
+            ->collapsible()
+            ->schema([
+                static::getCheckboxListFormComponent('license_manager_permissions', $licensePermissions, false)
+            ])
+            ->columnSpan(static::shield()->getSectionColumnSpan());
+
         $tabs = [];
 
         $tabs[] = Forms\Components\Tabs\Tab::make('resources')
             ->label(__('filament-shield::filament-shield.resources'))
-            ->badge(static::getResourceTabBadgeCount() + count($backupPermissions) + count($updaterPermissions))
+            ->badge(static::getResourceTabBadgeCount() + count($backupPermissions) + count($updaterPermissions) + count($licensePermissions))
             ->schema([
                 Forms\Components\Grid::make()
                     ->schema($resourceSchemas)

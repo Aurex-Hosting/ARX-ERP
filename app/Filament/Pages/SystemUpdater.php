@@ -38,12 +38,21 @@ class SystemUpdater extends Page
             Action::make("check_updates")
                 ->label("Check for Updates")
                 ->icon("heroicon-o-magnifying-glass")
+                ->visible(fn () => auth()->user()->can("check_updates"))
                 ->action(function (UpdateManager $updater) {
-                    $updater->checkLatestVersion(true); // Force fetch
-                    Notification::make()
-                        ->title("Checked for updates successfully.")
-                        ->success()
-                        ->send();
+                    $result = $updater->checkLatestVersion(true); // Force fetch
+                    if (isset($result["error"])) {
+                        Notification::make()
+                            ->title("Update Check Failed")
+                            ->body($result["error"])
+                            ->danger()
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->title("Checked for updates successfully.")
+                            ->success()
+                            ->send();
+                    }
                     $this->redirect(static::getUrl());
                 }),
 
@@ -54,7 +63,7 @@ class SystemUpdater extends Page
                 ->requiresConfirmation()
                 ->modalHeading("Confirm System Update")
                 ->modalDescription("Are you sure you want to update the system to the latest version? A pre-flight backup will be taken automatically. This process may take a few minutes. Do not close this window.")
-                ->visible(fn () => $this->updateAvailable)
+                ->visible(fn () => $this->updateAvailable && auth()->user()->can("execute_update"))
                 ->action(function (UpdateManager $updater) {
                     Notification::make()
                         ->title("Update Engine Initializing...")
@@ -86,7 +95,7 @@ class SystemUpdater extends Page
                 ->requiresConfirmation()
                 ->modalHeading("Confirm System Rollback")
                 ->modalDescription("Are you sure you want to rollback to the previous version? The system will download and install the previous codebase.")
-                ->visible(fn () => $this->previousVersion !== null)
+                ->visible(fn () => $this->previousVersion !== null && auth()->user()->can("rollback_updates"))
                 ->action(function (UpdateManager $updater) {
                     Notification::make()->title("Rollback Engine Initializing...")->warning()->send();
                     $result = $updater->performRollback();

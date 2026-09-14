@@ -16,7 +16,7 @@
 
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Latest Version</p>
-                        @if($latestRelease)
+                        @if($latestRelease && !isset($latestRelease["error"]))
                             <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ $latestRelease["version"] }}</p>
                             @if($updateAvailable)
                                 <p class="text-sm font-medium text-success-600 dark:text-success-400 mt-1">
@@ -29,7 +29,7 @@
                             @endif
                         @else
                             <p class="text-lg font-medium text-danger-600 dark:text-danger-400">
-                                Unknown (Could not fetch from GitHub)
+                                {{ $latestRelease["error"] ?? "Unknown (Could not fetch from License Server)" }}
                             </p>
                         @endif
                     </div>
@@ -41,7 +41,7 @@
         <div class="md:col-span-2">
             <x-filament::section>
                 <x-slot name="heading">
-                    Release Notes @if($latestRelease) - {{ $latestRelease["version"] }} @endif
+                    Release Notes @if($latestRelease && !isset($latestRelease["error"])) - {{ $latestRelease["version"] }} @endif
                 </x-slot>
 
                 <div class="prose dark:prose-invert max-w-none">

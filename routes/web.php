@@ -16,3 +16,7 @@ Route::get('/two-factor-challenge', TwoFactorChallenge::class)->name('two-factor
 
 
 
+
+Route::get('/license-error', function () {
+    return view('errors.license');
+})->name('license.error');

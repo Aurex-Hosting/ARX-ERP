@@ -6,9 +6,32 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 
 class UpdateManager
 {
+    public function getInstallationId(): string
+    {
+        $path = storage_path("app/device_fingerprint.txt");
+        if (file_exists($path)) {
+            return trim(file_get_contents($path));
+        }
+        
+        $machineId = "";
+        if (file_exists("/etc/machine-id")) {
+            $machineId = trim(file_get_contents("/etc/machine-id"));
+        } elseif (file_exists("/var/lib/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤bus/machine-id")) {
+            $machineId = trim(file_get_contents("/var/lib/dbus/machine-id"));
+        } else {
+            $machineId = Str::uuid()->toString();
+        }
+
+        $fingerprint = hash("sha256", php_uname("l") . php_uname("m") . $machineId);
+        file_put_contents($path, $fingerprint);
+        
+        return $fingerprint;
+    }
+
     public function getCurrentVersion(): string
     {
         $path = base_path("version.txt");
@@ -18,6 +41,7 @@ class UpdateManager
         return "v1.0.0";
     }
 
+
     public function checkLatestVersion($force = false): ?array
     {
         $cacheKey = "updater.latest_release";
@@ -26,35 +50,50 @@ class UpdateManager
             return Cache::get($cacheKey);
         }
 
-        $repo = env("GITHUB_REPO_PATH");
-        if (!$repo) {
-            Log::error("System Updater: GITHUB_REPO_PATH is not set in .env");
-            return null;
+        $key = env("PRODUCT_LICENSE_KEY");
+        if (!$key) {
+            Log::error("System Updater: PRODUCT_LICENSE_KEY is not set in .env");
+            return ["error" => "PRODUCT_LICENSE_KEY is missing in .env"];
         }
 
         try {
-            $response = Http::withHeaders([
-                "Accept" => "application/vnd.github.v3+json",
+            Log::info("Updater: Sending POST to license server for checkLatestVersion", ["key" => $key, "installationId" => $this->getInstallationId()]);
+            $response = Http::withOptions([
+                "curl" => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+                "connect_timeout" => 10,
+                "timeout" => 30
+            ])->withHeaders([
+                "Accept" => "application/json",
                 "User-Agent" => "Aurex-ERP-Updater"
-            ])->get("https://api.github.com/repos/{$repo}/releases/latest");
+            ])->post("https://license.magneticx.store/api/v1/license/update?t=" . time(), [
+                "key" => $key,
+                "installationId" => $this->getInstallationId()
+            ]);
+
+            $data = $response->json();
+            Log::info("Updater: Received response from license server", ["status" => $response->status(), "body" => $response->body()]);
 
             if ($response->successful()) {
-                $data = $response->json();
-                
-                $releaseInfo = [
-                    "version" => $data["tag_name"] ?? null,
-                    "notes" => $data["body"] ?? "No release notes provided.",
-                    "zipball_url" => $data["zipball_url"] ?? null,
-                    "published_at" => $data["published_at"] ?? null,
-                ];
-
-                Cache::put($cacheKey, $releaseInfo, now()->addHours(12));
-                return $releaseInfo;
+                if (!empty($data["success"]) && $data["success"] === true) {
+                    $releaseInfo = [
+                        "version" => $data["latest_version"] ?? null,
+                        "notes" => $data["notes"] ?? "No release notes provided.",
+                        "name" => $data["name"] ?? null,
+                        "published_at" => $data["published_at"] ?? null,
+                    ];
+                    Cache::put($cacheKey, $releaseInfo, now()->addHours(12));
+                    return $releaseInfo;
+                } else {
+                    $errMsg = $data["message"] ?? $data["error"] ?? "License check rejected by server.";
+                    return ["error" => $errMsg];
+                }
             } else {
-                Log::error("System Updater: Failed to fetch latest release from GitHub. Status: " . $response->status());
+                $errMsg = $data["message"] ?? $data["error"] ?? "License Server Error (HTTP " . $response->status() . ")";
+                return ["error" => $errMsg];
             }
         } catch (\Exception $e) {
-            Log::error("System Updater: Exception while fetching latest release - " . $e->getMessage());
+            Log::error("System Updater: Exception - " . $e->getMessage());
+            return ["error" => "Connection Exception: " . $e->getMessage()];
         }
 
         return null;
@@ -63,7 +102,7 @@ class UpdateManager
     public function isUpdateAvailable(): bool
     {
         $latest = $this->checkLatestVersion();
-        if (!$latest || empty($latest["version"])) {
+        if (!$latest || isset($latest["error"]) || empty($latest["version"])) {
             return false;
         }
 
@@ -80,7 +119,7 @@ class UpdateManager
         set_time_limit(0);
         $latest = $this->checkLatestVersion();
         
-        if (!$latest || empty($latest["zipball_url"])) {
+        if (!$latest || empty($latest["name"])) {
             return ["success" => false, "message" => "No valid update package found."];
         }
 
@@ -104,14 +143,29 @@ class UpdateManager
         // 2. Download ZIP
         Log::info("Updater: Downloading Update ZIP");
         try {
-            $response = Http::withHeaders([
-                "Accept" => "application/vnd.github.v3+json",
+            Log::info("Updater: Sending POST to license server for checkLatestVersion", ["key" => $key, "installationId" => $this->getInstallationId()]);
+            $response = Http::withOptions([
+                "curl" => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+                "connect_timeout" => 10,
+                "timeout" => 600
+            ])->withHeaders([
+                "Accept" => "application/json",
                 "User-Agent" => "Aurex-ERP-Updater"
-            ])->get($latest["zipball_url"]);
+            ])->post("https://license.magneticx.store/api/v1/license/download?t=" . time(), [
+                "key" => env("PRODUCT_LICENSE_KEY"),
+                "installationId" => $this->getInstallationId(),
+                "Relesename" => $latest["name"]
+            ]);
+            
+            if (!$response->successful()) {
+                $data = $response->json();
+                $errMsg = $data["message"] ?? $data["error"] ?? "Failed to download update package (HTTP " . $response->status() . ").";
+                return ["success" => false, "message" => $errMsg];
+            }
             
             file_put_contents($zipPath, $response->body());
         } catch (\Exception $e) {
-            return ["success" => false, "message" => "Failed to download update package."];
+            return ["success" => false, "message" => "Exception during download: " . $e->getMessage()];
         }
 
         // 3. Extract ZIP
@@ -132,11 +186,9 @@ class UpdateManager
         Log::info("Updater: Replacing Files");
         try {
             $directories = glob($extractPath . "/*" , GLOB_ONLYDIR);
-            if (empty($directories)) {
-                throw new \Exception("Extracted folder is empty.");
-            }
             
-            $sourceDir = $directories[0];
+            // If the extracted zip doesnt have a single root folder, use the extract path directly
+            $sourceDir = empty($directories) ? $extractPath : $directories[0];
             
             $this->copyDirectory($sourceDir, base_path());
         } catch (\Exception $e) {
@@ -153,7 +205,8 @@ class UpdateManager
             Artisan::call("migrate", ["--force" => true]);
             Artisan::call("optimize:clear");
             
-            file_put_contents(base_path("previous_version.txt"), $this->getCurrentVersion()); file_put_contents(base_path("version.txt"), $latest["version"]);
+            file_put_contents(base_path("previous_version.txt"), $this->getCurrentVersion());
+            file_put_contents(base_path("version.txt"), $latest["version"]);
             Cache::forget("updater.latest_release");
             activity()->log("System successfully updated to " . $latest["version"]);
             
@@ -194,7 +247,7 @@ class UpdateManager
     private function deleteDirectory($dir)
     {
         if (!file_exists($dir)) return true;
-        if (!is_dir($dir)) return unlink($dir);
+        if (!is_dir($dir)) return unlink ($dir);
         
         foreach (scandir($dir) as $item) {
             if ($item == "." || $item == "..") continue;
@@ -220,9 +273,6 @@ class UpdateManager
             return ["success" => false, "message" => "No previous version recorded."];
         }
 
-        $repo = env("GITHUB_REPO_PATH");
-        $zipUrl = "https://api.github.com/repos/{$repo}/zipball/{$previous}";
-
         $tempDir = storage_path("app/updates");
         $zipPath = $tempDir . "/rollback.zip";
         $extractPath = $tempDir . "/extracted_rollback";
@@ -233,17 +283,29 @@ class UpdateManager
 
         Log::info("Updater: Downloading Rollback ZIP for $previous");
         try {
-            $response = Http::withHeaders([
-                "Accept" => "application/vnd.github.v3+json",
+            Log::info("Updater: Sending POST to license server for checkLatestVersion", ["key" => $key, "installationId" => $this->getInstallationId()]);
+            $response = Http::withOptions([
+                "curl" => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+                "connect_timeout" => 10,
+                "timeout" => 600
+            ])->withHeaders([
+                "Accept" => "application/json",
                 "User-Agent" => "Aurex-ERP-Updater"
-            ])->get($zipUrl);
+            ])->post("https://license.magneticx.store/api/v1/license/download?t=" . time(), [
+                "key" => env("PRODUCT_LICENSE_KEY"),
+                "installationId" => $this->getInstallationId(),
+                "Relesename" => $latest["name"]
+            ]);
             
             if (!$response->successful()) {
-                return ["success" => false, "message" => "Failed to download rollback package from GitHub."];
+                $data = $response->json();
+                $errMsg = $data["message"] ?? $data["error"] ?? "Failed to download update package (HTTP " . $response->status() . ").";
+                return ["success" => false, "message" => $errMsg];
             }
+            
             file_put_contents($zipPath, $response->body());
         } catch (\Exception $e) {
-            return ["success" => false, "message" => "Failed to download rollback package."];
+            return ["success" => false, "message" => "Exception during rollback download: " . $e->getMessage()];
         }
 
         Log::info("Updater: Extracting Rollback ZIP");
@@ -262,10 +324,9 @@ class UpdateManager
         Log::info("Updater: Replacing Files for Rollback");
         try {
             $directories = glob($extractPath . "/*" , GLOB_ONLYDIR);
-            if (empty($directories)) {
-                throw new \Exception("Extracted folder is empty.");
-            }
-            $sourceDir = $directories[0];
+            
+            $sourceDir = empty($directories) ? $extractPath : $directories[0];
+            
             $this->copyDirectory($sourceDir, base_path());
         } catch (\Exception $e) {
             Log::error("Updater: File copy failed - " . $e->getMessage());
