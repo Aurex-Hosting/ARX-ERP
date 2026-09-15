@@ -1,4 +1,34 @@
 <?php
+
+function runWithSpinner($command, $message) {
+    echo $message . " ";
+    $descriptorspec = [
+        0 => ["pipe", "r"],
+        1 => ["pipe", "w"],
+        2 => ["pipe", "w"]
+    ];
+    $process = proc_open($command, $descriptorspec, $pipes);
+    if (is_resource($process)) {
+        stream_set_blocking($pipes[1], 0);
+        stream_set_blocking($pipes[2], 0);
+        $frames = ["\e[36m⠋\e[0m", "\e[36m⠙\e[0m", "\e[36m⠹\e[0m", "\e[36m⠸\e[0m", "\e[36m⠼\e[0m", "\e[36m⠴\e[0m", "\e[36m⠦\e[0m", "\e[36m⠧\e[0m", "\e[36m⠇\e[0m", "\e[36m⠏\e[0m"];
+        $i = 0;
+        while (true) {
+            $status = proc_get_status($process);
+            if (!$status["running"]) break;
+            
+            echo "\r" . $message . " " . $frames[$i % count($frames)];
+            $i++;
+            usleep(100000);
+        }
+        fclose($pipes[0]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($process);
+        echo "\r" . $message . " [\e[32m✔\e[0m]       \n";
+    }
+}
+
 if (php_sapi_name() !== "cli") die("This installer must be run from the command line: php install.php\n");
 
 echo "========================================\n";
@@ -101,9 +131,9 @@ file_put_contents(".env", $env);
 echo "[+] .env file created successfully.\n\n";
 
 echo "[*] Initializing Application...\n";
-exec("php artisan key:generate --force");
-exec("php artisan migrate --force");
-exec("php artisan shield:generate --all --no-interaction");
+runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
+runWithSpinner("php artisan migrate --force", "    -> Running Database Migrations...");
+runWithSpinner("php artisan shield:generate --all --no-interaction", "    -> Generating Security Shields...");
 
 echo "\n[*] Admin Account Setup\n";
 $admin_name = readline("Admin Name: ");
