@@ -48,8 +48,24 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 $data = json_decode($response, true);
-if ($httpCode !== 200 || empty($data["success"])) {
-    $error = $data["error"] ?? $data["message"] ?? "Unknown error (HTTP $httpCode)";
+
+$isSuccess = false;
+$error = "Unknown error (HTTP $httpCode)";
+
+// Handle nested RSA structure
+if (isset($data["data"]["success"])) {
+    $isSuccess = $data["data"]["success"];
+    $error = $data["data"]["error"] ?? $data["data"]["message"] ?? $error;
+} 
+// Handle raw structure
+elseif (isset($data["success"])) {
+    $isSuccess = $data["success"];
+    $error = $data["error"] ?? $data["message"] ?? $error;
+}
+
+if ($httpCode !== 200 || !$isSuccess) {
+
+    
     die("\n[!] License Activation Failed: $error\n");
 }
 echo "[+] License Activated Successfully!\n\n";

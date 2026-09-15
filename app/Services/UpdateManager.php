@@ -20,7 +20,7 @@ class UpdateManager
         $machineId = "";
         if (file_exists("/etc/machine-id")) {
             $machineId = trim(file_get_contents("/etc/machine-id"));
-        } elseif (file_exists("/var/lib/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤bus/machine-id")) {
+        } elseif (file_exists("/var/lib/ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤bus/machine-id")) {
             $machineId = trim(file_get_contents("/var/lib/dbus/machine-id"));
         } else {
             $machineId = Str::uuid()->toString();
@@ -74,12 +74,37 @@ class UpdateManager
             Log::info("Updater: Received response from license server", ["status" => $response->status(), "body" => $response->body()]);
 
             if ($response->successful()) {
-                if (!empty($data["success"]) && $data["success"] === true) {
+                
+                $isSuccess = false;
+                $respData = $data;
+
+                // Handle RSA wrapper
+                if (isset($data["data"]) && isset($data["signature"])) {
+                    $payloadString = json_encode($data["data"]);
+                    $signature = base64_decode($data["signature"]);
+                    
+                    $isValid = openssl_verify($payloadString, $signature, $this->publicKey, OPENSSL_ALGO_SHA256);
+                    if ($isValid === 1) {
+                        $isSuccess = isset($data["data"]["success"]) && $data["data"]["success"] === true;
+                        $respData = $data["data"];
+                    } else {
+                        Log::error("Updater: RSA Signature Verification Failed!");
+                        return ["error" => "Update check failed security verification."];
+                    }
+                } 
+                // Legacy fallback
+                elseif (!empty($data["success"]) && $data["success"] === true) {
+                    $isSuccess = true;
+                }
+
+                if ($isSuccess) {
+
                     $releaseInfo = [
-                        "version" => $data["latest_version"] ?? null,
-                        "notes" => $data["notes"] ?? "No release notes provided.",
-                        "name" => $data["name"] ?? null,
-                        "published_at" => $data["published_at"] ?? null,
+                        "version" => $respData["latest_version"] ?? null,
+                        "notes" => $respData["notes"] ?? "No release notes provided.",
+                        "name" => $respData["name"] ?? null,
+                        "published_at" => $respData["published_at"] ?? null,
+                        "zip_hash" => $respData["zip_hash"] ?? null,
                     ];
                     Cache::put($cacheKey, $releaseInfo, now()->addHours(12));
                     return $releaseInfo;
@@ -164,6 +189,20 @@ class UpdateManager
             }
             
             file_put_contents($zipPath, $response->body());
+            
+            // 2b. Verify ZIP SHA-256 Hash
+            if (!empty($latest["zip_hash"])) {
+                $downloadedHash = hash_file("sha256", $zipPath);
+                if ($downloadedHash !== $latest["zip_hash"]) {
+                    @unlink($zipPath); // Delete corrupted/malicious file
+                    Log::error("Updater: CRITICAL - Downloaded update zip hash does not match RSA signed hash!");
+                    return ["success" => false, "message" => "Update aborted. Downloaded package failed cryptographic integrity check."];
+                }
+                Log::info("Updater: ZIP hash verified successfully.");
+            } else {
+                Log::warning("Updater: No zip_hash provided in release info. Skipping cryptographic hash check.");
+            }
+
         } catch (\Exception $e) {
             return ["success" => false, "message" => "Exception during download: " . $e->getMessage()];
         }
