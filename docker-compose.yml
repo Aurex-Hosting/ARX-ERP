@@ -23,8 +23,7 @@ services:
       - ./:/var/www
     networks:
       - erp-network
-    depends_on:
-      - mysql
+
 
   web:
     image: nginx:alpine
@@ -39,40 +38,12 @@ services:
     depends_on:
       - app
 
-  mysql:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-erp}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-      MYSQL_USER: ${DB_USERNAME:-erp}
-      MYSQL_ALLOW_EMPTY_PASSWORD: 1
-    volumes:
-      - erp-mysql-data:/var/lib/mysql
-    networks:
-      - erp-network
-    ports:
-      - "3306:3306"
 
-  pgsql:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${DB_DATABASE:-erp}
-      POSTGRES_USER: ${DB_USERNAME:-erp}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
-    volumes:
-      - erp-pgsql-data:/var/lib/postgresql/data
-    networks:
-      - erp-network
-    ports:
-      - "5432:5432"
+
+
 
 networks:
   erp-network:
     driver: bridge
 
-volumes:
-  erp-mysql-data:
-  erp-pgsql-data:
+
