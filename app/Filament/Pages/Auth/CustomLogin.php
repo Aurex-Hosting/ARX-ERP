@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Filament\Pages\Auth;
 
@@ -26,9 +26,14 @@ class CustomLogin extends BaseLogin
 
         try {
             // Check credentials first before fully authenticating
+            if (! $user) {
+                throw ValidationException::withMessages([
+                    'data.email' => 'DEBUG: User not found! Email searched: ' . $data['email'],
+                ]);
+            }
             if (! \Illuminate\Support\Facades\Hash::check($data['password'], $user->password)) {
                 throw ValidationException::withMessages([
-                    'data.email' => __('filament-panels::pages/auth/login.messages.failed'),
+                    'data.email' => 'DEBUG: Hash check failed! DB Hash starts with: ' . substr($user->password, 0, 15),
                 ]);
             }
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 function runWithSpinner($command, $message) {
     echo $message . " ";
@@ -11,7 +11,7 @@ function runWithSpinner($command, $message) {
     if (is_resource($process)) {
         stream_set_blocking($pipes[1], 0);
         stream_set_blocking($pipes[2], 0);
-        $frames = ["\e[36mâ ‹\e[0m", "\e[36mâ ™\e[0m", "\e[36mâ ¹\e[0m", "\e[36mâ ¸\e[0m", "\e[36mâ ¼\e[0m", "\e[36mâ ´\e[0m", "\e[36mâ ¦\e[0m", "\e[36mâ §\e[0m", "\e[36mâ ‡\e[0m", "\e[36mâ \e[0m"];
+        $frames = ["\e[36mÃ¢Â â€¹\e[0m", "\e[36mÃ¢Â â„¢\e[0m", "\e[36mÃ¢Â Â¹\e[0m", "\e[36mÃ¢Â Â¸\e[0m", "\e[36mÃ¢Â Â¼\e[0m", "\e[36mÃ¢Â Â´\e[0m", "\e[36mÃ¢Â Â¦\e[0m", "\e[36mÃ¢Â Â§\e[0m", "\e[36mÃ¢Â â€¡\e[0m", "\e[36mÃ¢Â Â\e[0m"];
         $i = 0;
         while (true) {
             $status = proc_get_status($process);
@@ -25,7 +25,7 @@ function runWithSpinner($command, $message) {
         fclose($pipes[1]);
         fclose($pipes[2]);
         proc_close($process);
-        echo "\r" . $message . " [\e[32mâœ”\e[0m]       \n";
+        echo "\r" . $message . " [\e[32mÃ¢Å“â€\e[0m]       \n";
     }
 }
 
@@ -135,14 +135,22 @@ runWithSpinner("mkdir -p storage/framework/views storage/framework/cache storage
 runWithSpinner("chmod -R 775 storage bootstrap/cache", "    -> Setting Directory Permissions...");
 runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
 runWithSpinner("php artisan migrate --force", "    -> Running Database Migrations...");
-runWithSpinner("php artisan shield:generate --all --no-interaction", "    -> Generating Security Shields...");
+runWithSpinner("yes | php artisan shield:generate --all", "    -> Generating Security Shields...");
 
 echo "\n[*] Admin Account Setup\n";
 $admin_name = readline("Admin Name: ");
 $admin_email = readline("Admin Email: ");
 $admin_pass = readline("Admin Password: ");
 
-exec("php artisan tinker --execute=\"use App\Models\User; \$user = User::firstOrCreate([\"email\" => \"$admin_email\"], [\"name\" => \"$admin_name\", \"password\" => bcrypt(\"$admin_pass\"), \"email_verified_at\" => now()]); \$user->assignRole(\"super_admin\");\"");
+
+$cmd = "php artisan tinker --execute=\"use App\Models\User; \$user = User::firstOrCreate([\x27email\x27 => \x27$admin_email\x27], [\x27name\x27 => \x27$admin_name\x27, \x27password\x27 => \x27$admin_pass\x27, \x27email_verified_at\x27 => now()]); \$user->assignRole(\x27super_admin\x27);\"";
+$output = [];
+$return_var = 0;
+exec($cmd, $output, $return_var);
+if ($return_var !== 0) {
+    die("\n[!] Failed to create admin account. Please verify your database credentials and try again.\n");
+}
+
 
 echo "\n========================================\n";
 echo "    Installation Complete!\n";
