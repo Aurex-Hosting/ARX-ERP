@@ -11,7 +11,7 @@ function runWithSpinner($command, $message) {
     if (is_resource($process)) {
         stream_set_blocking($pipes[1], 0);
         stream_set_blocking($pipes[2], 0);
-        $frames = ["\e[36m⠋\e[0m", "\e[36m⠙\e[0m", "\e[36m⠹\e[0m", "\e[36m⠸\e[0m", "\e[36m⠼\e[0m", "\e[36m⠴\e[0m", "\e[36m⠦\e[0m", "\e[36m⠧\e[0m", "\e[36m⠇\e[0m", "\e[36m⠏\e[0m"];
+        $frames = ["\e[36mâ ‹\e[0m", "\e[36mâ ™\e[0m", "\e[36mâ ¹\e[0m", "\e[36mâ ¸\e[0m", "\e[36mâ ¼\e[0m", "\e[36mâ ´\e[0m", "\e[36mâ ¦\e[0m", "\e[36mâ §\e[0m", "\e[36mâ ‡\e[0m", "\e[36mâ \e[0m"];
         $i = 0;
         while (true) {
             $status = proc_get_status($process);
@@ -25,7 +25,7 @@ function runWithSpinner($command, $message) {
         fclose($pipes[1]);
         fclose($pipes[2]);
         proc_close($process);
-        echo "\r" . $message . " [\e[32m✔\e[0m]       \n";
+        echo "\r" . $message . " [\e[32mâœ”\e[0m]       \n";
     }
 }
 
@@ -131,6 +131,8 @@ file_put_contents(".env", $env);
 echo "[+] .env file created successfully.\n\n";
 
 echo "[*] Initializing Application...\n";
+runWithSpinner("mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions storage/logs bootstrap/cache", "    -> Creating Storage Directories...");
+runWithSpinner("chmod -R 775 storage bootstrap/cache", "    -> Setting Directory Permissions...");
 runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
 runWithSpinner("php artisan migrate --force", "    -> Running Database Migrations...");
 runWithSpinner("php artisan shield:generate --all --no-interaction", "    -> Generating Security Shields...");
