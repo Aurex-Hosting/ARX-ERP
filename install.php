@@ -155,7 +155,7 @@ $admin_email = readline("Admin Email: ");
 $admin_pass = readline("Admin Password: ");
 
 
-$cmd = "php artisan tinker --execute=\"use App\Models\User; \$user = User::firstOrCreate([\x27email\x27 => \x27$admin_email\x27], [\x27name\x27 => \x27$admin_name\x27, \x27password\x27 => \x27$admin_pass\x27, \x27email_verified_at\x27 => now()]); \$user->assignRole(\x27super_admin\x27);\"";
+$cmd = "php artisan tinker --execute=\"use App\Models\User; \\\$user = User::firstOrCreate([\x27email\x27 => \x27$admin_email\x27], [\x27name\x27 => \x27$admin_name\x27, \x27password\x27 => \x27$admin_pass\x27, \x27email_verified_at\x27 => now()]); \\\$user->assignRole(\x27super_admin\x27);\"";
 $output = [];
 $return_var = 0;
 exec($cmd, $output, $return_var);
