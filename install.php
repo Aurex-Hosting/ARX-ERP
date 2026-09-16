@@ -146,7 +146,6 @@ echo "[*] Initializing Application...\n";
 runWithSpinner("mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions storage/logs bootstrap/cache", "    -> Creating Storage Directories...");
 runWithSpinner("chmod -R 777 storage bootstrap/cache", "    -> Setting Directory Permissions...");
 runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
-runWithSpinner("php artisan notifications:table", "    -> Generating Notifications Table...");
 runWithSpinner("php artisan migrate --force", "    -> Running Database Migrations...");
 runWithSpinner("yes | php artisan shield:generate --all", "    -> Generating Security Shields...");
 
