@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('activity_log', function (Blueprint $table) {
-            $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
+            if (!Schema::hasColumn('activity_log', 'ip_address')) { $table->string('ip_address', 45)->nullable(); }
+            if (!Schema::hasColumn('activity_log', 'user_agent')) { $table->text('user_agent')->nullable(); }
         });
     }
 

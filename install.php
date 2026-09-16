@@ -144,8 +144,9 @@ echo "[+] .env file created successfully.\n\n";
 
 echo "[*] Initializing Application...\n";
 runWithSpinner("mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions storage/logs bootstrap/cache", "    -> Creating Storage Directories...");
-runWithSpinner("chmod -R 775 storage bootstrap/cache", "    -> Setting Directory Permissions...");
+runWithSpinner("chmod -R 777 storage bootstrap/cache", "    -> Setting Directory Permissions...");
 runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
+runWithSpinner("php artisan notifications:table", "    -> Generating Notifications Table...");
 runWithSpinner("php artisan migrate --force", "    -> Running Database Migrations...");
 runWithSpinner("yes | php artisan shield:generate --all", "    -> Generating Security Shields...");
 
@@ -159,7 +160,7 @@ $admin_pass = readline("Admin Password: ");
   $first_name = $name_parts[0] ?? '';
   $last_name = $name_parts[1] ?? '';
 
-  $cmd = "php artisan tinker --execute=\"use App\Models\User; \\\$user = User::where('email', '$admin_email')->first() ?? new User(); \\\$user->forceFill(['email' => '$admin_email', 'first_name' => '$first_name', 'last_name' => '$last_name', 'password' => '$admin_pass', 'email_verified_at' => now(), 'is_locked' => false, 'failed_login_attempts' => 0]); \\\$user->save(); \\\$user->assignRole('super_admin');\"";
+  $cmd = "php artisan tinker --execute=\"use App\Models\User; use Spatie\Permission\Models\Role; Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']); \\\$user = User::where('email', '$admin_email')->first() ?? new User(); \\\$user->forceFill(['email' => '$admin_email', 'first_name' => '$first_name', 'last_name' => '$last_name', 'password' => '$admin_pass', 'email_verified_at' => now(), 'is_locked' => false, 'failed_login_attempts' => 0]); \\\$user->save(); \\\$user->assignRole('super_admin'); app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();\"";
   $output = [];
   $return_var = 0;
   exec($cmd, $output, $return_var);
