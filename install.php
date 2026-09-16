@@ -114,7 +114,18 @@ if (empty($db_user)) $db_user = "erp_user";
 $db_pass = readline("Database Password (default: erp_password): ");
 if (empty($db_pass)) $db_pass = "erp_password";
 
-echo "\n[*] Generating .env file...\n";
+echo "\n[*] Testing Database Connection...\n";
+  try {
+      $pdo = new PDO("mysql:host=$db_host;port=$db_port;dbname=$db_name", $db_user, $db_pass, [
+          PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+          PDO::ATTR_TIMEOUT => 5
+      ]);
+      echo "[+] Database connection successful!\n";
+  } catch (PDOException $e) {
+      die("\n[!] Database connection failed: " . $e->getMessage() . "\nPlease verify your database is running and accessible from this machine.\n");
+  }
+
+  echo "\n[*] Generating .env file...\n";
 if (!file_exists(".env.example")) die("[!] .env.example file is missing.\n");
 
 $env = file_get_contents(".env.example");
