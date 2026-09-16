@@ -160,7 +160,7 @@ $output = [];
 $return_var = 0;
 exec($cmd, $output, $return_var);
 if ($return_var !== 0) {
-    die("\n[!] Failed to create admin account. Please verify your database credentials and try again.\n");
+    die("\n[!] Failed to create admin account.\nError Output:\n" . implode("\n", $output) . "\n");
 }
 
 
