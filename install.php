@@ -118,7 +118,8 @@ echo "\n[*] Testing Database Connection...\n";
   try {
       $pdo = new PDO("mysql:host=$db_host;port=$db_port;dbname=$db_name", $db_user, $db_pass, [
           PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-          PDO::ATTR_TIMEOUT => 5
+          PDO::ATTR_TIMEOUT => 5,
+          PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false
       ]);
       echo "[+] Database connection successful!\n";
   } catch (PDOException $e) {
