@@ -130,6 +130,10 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         }
 
         if ($panel->getId() === 'admin') {
+            if ($this->hasRole('super_admin')) {
+                return true;
+            }
+            
             if (!$this->can('access_admin_panel')) {
                 abort(404);
             }

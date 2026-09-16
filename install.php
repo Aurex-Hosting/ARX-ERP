@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 function runWithSpinner($command, $message) {
     echo $message . " ";
@@ -155,13 +155,17 @@ $admin_email = readline("Admin Email: ");
 $admin_pass = readline("Admin Password: ");
 
 
-$cmd = "php artisan tinker --execute=\"use App\Models\User; \\\$user = User::firstOrCreate([\x27email\x27 => \x27$admin_email\x27], [\x27name\x27 => \x27$admin_name\x27, \x27password\x27 => \x27$admin_pass\x27, \x27email_verified_at\x27 => now()]); \\\$user->assignRole(\x27super_admin\x27);\"";
-$output = [];
-$return_var = 0;
-exec($cmd, $output, $return_var);
-if ($return_var !== 0) {
-    die("\n[!] Failed to create admin account.\nError Output:\n" . implode("\n", $output) . "\n");
-}
+  $name_parts = explode(' ', $admin_name, 2);
+  $first_name = $name_parts[0] ?? '';
+  $last_name = $name_parts[1] ?? '';
+
+  $cmd = "php artisan tinker --execute=\"use App\Models\User; \\\$user = User::where('email', '$admin_email')->first() ?? new User(); \\\$user->forceFill(['email' => '$admin_email', 'first_name' => '$first_name', 'last_name' => '$last_name', 'password' => '$admin_pass', 'email_verified_at' => now(), 'is_locked' => false, 'failed_login_attempts' => 0]); \\\$user->save(); \\\$user->assignRole('super_admin');\"";
+  $output = [];
+  $return_var = 0;
+  exec($cmd, $output, $return_var);
+  if ($return_var !== 0) {
+      die("\n[!] Failed to create admin account.\nError Output:\n" . implode("\n", $output) . "\n");
+  }
 
 
 echo "\n========================================\n";
