@@ -4,11 +4,11 @@ use Illuminate\Support\Facades\Route;
 use App\Livewire\TwoFactorChallenge;
 
 Route::get('/', function () {
-    return redirect('/admin');
+    return redirect('/dashboard');
 });
 
 Route::get('/login', function () {
-    return redirect('/admin/login');
+    return redirect('/dashboard/login');
 })->name('login');
 
 Route::get('/two-factor-challenge', TwoFactorChallenge::class)->name('two-factor.challenge')->middleware(['web']);

@@ -23,6 +23,7 @@ class DashboardPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         $panel
+            ->default()
             ->id('dashboard')
             ->path('dashboard')
             ->login(\App\Filament\Pages\Auth\CustomLogin::class)

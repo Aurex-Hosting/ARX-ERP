@@ -41,9 +41,12 @@
 
                     <div class="mt-4">
                         <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Expiration Date</p>
-                        @if(isset($licenseData["expiresAt"]))
+                        @php
+                            $expiryKey = isset($licenseData["expiresAt"]) ? "expiresAt" : (isset($licenseData["expires_at"]) ? "expires_at" : null);
+                        @endphp
+                        @if($expiryKey)
                             @php
-                                $expires = \Carbon\Carbon::parse($licenseData["expiresAt"]);
+                                $expires = \Carbon\Carbon::parse($licenseData[$expiryKey]);
                                 $days = (int) now()->diffInDays($expires, false);
                             @endphp
                             <p class="text-lg font-bold text-gray-900 dark:text-white">
