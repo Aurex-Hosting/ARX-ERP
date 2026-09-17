@@ -146,7 +146,12 @@ echo "[*] Initializing Application...\n";
 runWithSpinner("mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions storage/logs bootstrap/cache", "    -> Creating Storage Directories...");
 runWithSpinner("chmod -R 777 storage bootstrap/cache", "    -> Setting Directory Permissions...");
 runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
-runWithSpinner("php artisan migrate --force", "    -> Running Database Migrations...");
+$fresh_install = readline("Do you want to perform a fresh installation? WARNING: This will delete all existing data! (yes/no): ");
+if (strtolower(trim($fresh_install)) === 'yes') {
+    runWithSpinner("php artisan migrate:fresh --force", "    -> Wiping Database & Running Fresh Migrations...");
+} else {
+    runWithSpinner("php artisan migrate --force", "    -> Running Database Migrations...");
+}
 runWithSpinner("yes | php artisan shield:generate --all", "    -> Generating Security Shields...");
 
 echo "\n[*] Admin Account Setup\n";
