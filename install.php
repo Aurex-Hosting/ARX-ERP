@@ -168,6 +168,21 @@ $admin_pass = readline("Admin Password: ");
   }
 
 
+echo "\n[*] Verifying Installation Integrity...\n";
+$verify_cmd = "php artisan tinker --execute=\"use Illuminate\Support\Facades\Schema; use App\Models\User; \\\$errors = []; if (!Schema::hasTable('users')) \\\$errors[] = 'Missing table: users'; if (!Schema::hasTable('roles')) \\\$errors[] = 'Missing table: roles'; if (!Schema::hasTable('notifications')) \\\$errors[] = 'Missing table: notifications'; if (!Schema::hasTable('personal_access_tokens')) \\\$errors[] = 'Missing table: personal_access_tokens'; \\\$user = User::where('email', '$admin_email')->first(); if (!\\\$user) \\\$errors[] = 'Admin user was not created in the database'; elseif (!\\\$user->hasRole('super_admin')) \\\$errors[] = 'Admin user is missing the super_admin role'; if (!empty(\\\$errors)) { echo 'VERIFICATION_FAILED:' . implode(', ', \\\$errors); } else { echo 'VERIFICATION_OK'; }\"";
+$verify_output = [];
+$verify_return = 0;
+exec($verify_cmd, $verify_output, $verify_return);
+$verify_result = implode("\n", $verify_output);
+
+if (strpos($verify_result, 'VERIFICATION_FAILED') !== false) {
+    $reason = explode('VERIFICATION_FAILED:', $verify_result)[1] ?? 'Unknown error';
+    die("\n[!] Installation Verification Failed.\nReason: " . trim($reason) . "\nPlease run 'php artisan migrate:fresh' to wipe the broken database state and run the installer again.\n");
+} elseif (strpos($verify_result, 'VERIFICATION_OK') === false) {
+    die("\n[!] Installation Verification Failed. Could not run checks.\nError Output:\n" . $verify_result . "\n");
+}
+echo "[+] All systems verified successfully! Application is ready.\n";
+
 echo "\n========================================\n";
 echo "    Installation Complete!\n";
 echo "========================================\n";
