@@ -144,7 +144,6 @@ echo "[+] .env file created successfully.\n\n";
 
 echo "[*] Initializing Application...\n";
 runWithSpinner("mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions storage/logs bootstrap/cache", "    -> Creating Storage Directories...");
-runWithSpinner("cp -r public/images/Customizations storage/app/public/", "    -> Copying Default Customization Assets...");
 runWithSpinner("chmod -R 777 storage bootstrap/cache", "    -> Setting Directory Permissions...");
 runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
 $fresh_install = readline("Do you want to perform a fresh installation? WARNING: This will delete all existing data! (yes/no): ");

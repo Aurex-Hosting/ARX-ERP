@@ -28,9 +28,14 @@
             @endphp
             
         </p>
-        <a href="https://license.magneticx.store" target="_blank" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-md transition duration-200">
-            Renew License
-        </a>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
+            <a href="https://license.magneticx.store" target="_blank" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-md transition duration-200 w-full sm:w-auto">
+                Renew License
+            </a>
+            <a href="{{ route('license.check') }}" class="inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-6 rounded-md transition duration-200 w-full sm:w-auto">
+                Check Now
+            </a>
+        </div>
     </div>
 </body>
 </html>
