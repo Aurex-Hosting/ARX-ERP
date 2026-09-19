@@ -22,14 +22,14 @@ class Customization extends BaseSettingsPage
 
     public static function canAccess(): bool
     {
-        return auth()->check() && auth()->user()->hasAnyPermission([
+        return auth()->check() && (auth()->user()->hasRole('super_admin') || auth()->user()->hasAnyPermission([
             'view_brand_assets_customization', 'update_brand_assets_customization',
             'view_brand_colors_customization', 'update_brand_colors_customization',
             'view_login_background_customization', 'update_login_background_customization',
             'view_login_card_customization', 'update_login_card_customization',
             'view_login_slides_customization', 'update_login_slides_customization',
             'view_404_customization_customization', 'update_404_customization_customization',
-        ]);
+        ]));
     }
 
 
@@ -42,11 +42,11 @@ class Customization extends BaseSettingsPage
                 \Filament\Forms\Components\Tabs::make('CustomizationTabs')
                     ->tabs([
                         \Filament\Forms\Components\Tabs\Tab::make('Brand & Colors')
-                            ->visible(fn() => auth()->user()->hasAnyPermission(['view_brand_assets_customization', 'update_brand_assets_customization', 'view_brand_colors_customization', 'update_brand_colors_customization']))
+                            ->visible(fn() => auth()->user()->hasRole('super_admin') || auth()->user()->hasAnyPermission(['view_brand_assets_customization', 'update_brand_assets_customization', 'view_brand_colors_customization', 'update_brand_colors_customization']))
                             ->icon('heroicon-o-swatch')
                             ->schema([
                                 Section::make('Brand Identity')
-                                    ->visible(fn() => auth()->user()->hasAnyPermission(['view_brand_assets_customization', 'update_brand_assets_customization']))
+                                    ->visible(fn() => auth()->user()->hasRole('super_admin') || auth()->user()->hasAnyPermission(['view_brand_assets_customization', 'update_brand_assets_customization']))
                                     ->disabled(fn() => !auth()->user()->can('update_brand_assets_customization'))
                                     ->description('Set your company name, logo, and favicon.')
                                     ->schema([
@@ -79,7 +79,7 @@ class Customization extends BaseSettingsPage
                                     ]),
 
                                 Section::make('Brand Colors')
-                                    ->visible(fn() => auth()->user()->hasAnyPermission(['view_brand_colors_customization', 'update_brand_colors_customization']))
+                                    ->visible(fn() => auth()->user()->hasRole('super_admin') || auth()->user()->hasAnyPermission(['view_brand_colors_customization', 'update_brand_colors_customization']))
                                     ->disabled(fn() => !auth()->user()->can('update_brand_colors_customization'))
                                     ->description('Customize the application colors.')
                                     ->headerActions([
@@ -113,7 +113,7 @@ class Customization extends BaseSettingsPage
                             ]),
 
                         \Filament\Forms\Components\Tabs\Tab::make('Login Page')
-                            ->visible(fn() => auth()->user()->hasAnyPermission(['view_login_background_customization', 'update_login_background_customization', 'view_login_card_customization', 'update_login_card_customization', 'view_login_slides_customization', 'update_login_slides_customization']))
+                            ->visible(fn() => auth()->user()->hasRole('super_admin') || auth()->user()->hasAnyPermission(['view_login_background_customization', 'update_login_background_customization', 'view_login_card_customization', 'update_login_card_customization', 'view_login_slides_customization', 'update_login_slides_customization']))
                             ->icon('heroicon-o-lock-closed')
                             ->schema([
                                 Section::make('Login Background')->visible(fn() => auth()->user()->can('view_login_background_customization') || auth()->user()->can('update_login_background_customization'))->disabled(fn() => !auth()->user()->can('update_login_background_customization'))
@@ -159,7 +159,7 @@ class Customization extends BaseSettingsPage
                             ]),
 
                         \Filament\Forms\Components\Tabs\Tab::make('404 Page')
-                            ->visible(fn() => auth()->user()->hasAnyPermission(['view_404_customization_customization', 'update_404_customization_customization']))
+                            ->visible(fn() => auth()->user()->hasRole('super_admin') || auth()->user()->hasAnyPermission(['view_404_customization_customization', 'update_404_customization_customization']))
                             ->icon('heroicon-o-exclamation-triangle')
                             ->schema([
                                 Section::make('404 Background')->visible(fn() => auth()->user()->can('view_404_customization_customization') || auth()->user()->can('update_404_customization_customization'))->disabled(fn() => !auth()->user()->can('update_404_customization_customization'))

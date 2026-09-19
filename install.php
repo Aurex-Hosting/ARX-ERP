@@ -110,7 +110,11 @@ if ($httpCode !== 200 || !$isSuccess) {
 }
 echo "[+] License Activated Successfully!\n\n";
 
-echo "[*] Database Configuration\n";
+echo "[*] Application Configuration\n";
+$app_url = readline("Enter your live Application URL (e.g., https://yourdomain.com): ");
+if (empty($app_url)) $app_url = "http://localhost";
+
+echo "\n[*] Database Configuration\n";
 $db_host = readline("Database Host (e.g., db): ");
 if (empty($db_host)) $db_host = "db";
 
@@ -147,6 +151,7 @@ $env = preg_replace("/DB_DATABASE=.*/", "DB_DATABASE=" . $db_name, $env);
 $env = preg_replace("/DB_USERNAME=.*/", "DB_USERNAME=" . $db_user, $env);
 $env = preg_replace("/DB_PASSWORD=.*/", "DB_PASSWORD=" . $db_pass, $env);
 $env = preg_replace("/APP_ENV=.*/", "APP_ENV=production", $env);
+    $env = preg_replace("/APP_URL=.*/", "APP_URL=" . $app_url, $env);
 $env = preg_replace("/APP_DEBUG=.*/", "APP_DEBUG=false", $env);
 
 file_put_contents(".env", $env);
@@ -156,6 +161,8 @@ echo "[*] Initializing Application...\n";
 runWithSpinner("mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions storage/logs bootstrap/cache", "    -> Creating Storage Directories...");
 runWithSpinner("chmod -R 777 storage bootstrap/cache", "    -> Setting Directory Permissions...");
 runWithSpinner("php artisan key:generate --force", "    -> Generating App Security Key...");
+  runWithSpinner("php artisan livewire:publish --assets", "    -> Publishing Livewire Assets...");
+  runWithSpinner("php artisan storage:link --force", "    -> Linking Storage Directories...");
 $fresh_install = readline("Do you want to perform a fresh installation? WARNING: This will delete all existing data! (yes/no): ");
 if (strtolower(trim($fresh_install)) === 'yes') {
     runWithSpinner("php artisan migrate:fresh --force", "    -> Wiping Database & Running Fresh Migrations...");

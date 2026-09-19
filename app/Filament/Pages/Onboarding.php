@@ -30,7 +30,7 @@ class Onboarding extends Page implements HasForms
     {
         $user = auth()->user();
         if (!$user->force_password_change && !$user->force_profile_update) {
-            redirect('/admin');
+            redirect('/dashboard');
         }
         
         $this->form->fill($user->toArray());
@@ -155,6 +155,6 @@ class Onboarding extends Page implements HasForms
         auth()->logout();
         request()->session()->invalidate();
         request()->session()->regenerateToken();
-        $this->redirect('/admin/login');
+        $this->redirect('/dashboard/login');
     }
 }

@@ -19,11 +19,11 @@ class EnsureOnboardingIsComplete
 
         if ($user && ($user->force_password_change || $user->force_profile_update)) {
             // Allow them to visit the onboarding page or logout
-            if (! $request->routeIs('filament.admin.pages.onboarding') && 
-                ! $request->routeIs('filament.admin.auth.logout') &&
+            if (! $request->routeIs('filament.dashboard.pages.onboarding') && 
+                ! $request->routeIs('filament.dashboard.auth.logout') &&
                 ! $request->routeIs('livewire.update') // Allow livewire calls to process on the onboarding page
             ) {
-                return redirect()->route('filament.admin.pages.onboarding');
+                return redirect()->route('filament.dashboard.pages.onboarding');
             }
         }
 

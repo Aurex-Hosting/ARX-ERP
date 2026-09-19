@@ -10,6 +10,9 @@ use Illuminate\Support\Str;
 
 class UpdateManager
 {
+    private $publicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0OuvmTkBYlGgxOvp5oQC\nb5LNv3xnqvR3300VPnzoiLYwo2aVL9zqLDs0wBqg/tiSVN/xDeIs18lSLy/R8dcx\n3zLAAm03R08H/UpUp4o2efFCBLgnEHwZTiAwdoS6nm7kcYxZyI1h7mVi7KKhAXRh\nn37TGoXs+Eb+kRQd4Xh8V1+uB+IpWv5b1+hVanlVFz61z/WVU5/RknPASHFNmG8K\nUahnqA7V8G4atH56/KjGdDBbBcr1mnjoTTCEzUGao86gYexCT9UXJf+cYpsNSTMt\nWG/0RMdFYnZYWksEllmA8Dg4RuG4b90W0Dz3cpHnQAfUJyrYdko3Gzl54iWPyxRC\nEwIDAQAB\n-----END PUBLIC KEY-----";
+
+
     public function getInstallationId(): string
     {
         $path = storage_path("app/device_fingerprint.txt");

@@ -198,7 +198,7 @@ class RoleResource extends Resource implements HasShieldPermissions
                                     ->live()
                                     ->afterStateHydrated(function ($component, $record) {
                                         if ($record) {
-                                            $component->state($record->hasPermissionTo('access_admin_panel'));
+                                            $component->state($record->permissions->where('name', 'access_admin_panel')->isNotEmpty());
                                         }
                                     }),
                             ])
