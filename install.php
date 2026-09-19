@@ -1,5 +1,15 @@
 <?php
 
+if (!function_exists('readline')) {
+    function readline($prompt = '') {
+        echo $prompt;
+        $handle = fopen("php://stdin", "r");
+        $line = fgets($handle);
+        fclose($handle);
+        return rtrim($line, "\r\n");
+    }
+}
+
 function runWithSpinner($command, $message) {
     echo $message . " ";
     $descriptorspec = [
@@ -11,7 +21,7 @@ function runWithSpinner($command, $message) {
     if (is_resource($process)) {
         stream_set_blocking($pipes[1], 0);
         stream_set_blocking($pipes[2], 0);
-        $frames = ["\e[36mÃ¢Â â€¹\e[0m", "\e[36mÃ¢Â â„¢\e[0m", "\e[36mÃ¢Â Â¹\e[0m", "\e[36mÃ¢Â Â¸\e[0m", "\e[36mÃ¢Â Â¼\e[0m", "\e[36mÃ¢Â Â´\e[0m", "\e[36mÃ¢Â Â¦\e[0m", "\e[36mÃ¢Â Â§\e[0m", "\e[36mÃ¢Â â€¡\e[0m", "\e[36mÃ¢Â Â\e[0m"];
+        $frames = ["\e[36m|\e[0m", "\e[36m/\e[0m", "\e[36m-\e[0m", "\e[36m\\\e[0m"];
         $i = 0;
         while (true) {
             $status = proc_get_status($process);

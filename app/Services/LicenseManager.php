@@ -38,7 +38,7 @@ class LicenseManager
                 "timeout" => 30
             ])->withHeaders([
                 "Accept" => "application/json",
-                "User-Agent" => "Aurex-ERP-LicenseManager"
+                "User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ])->post("https://license.magneticx.store/api/v1/license/validate?t=" . time(), [
                 "key" => $key,
                 "installationId" => $this->updateManager->getInstallationId()
@@ -77,6 +77,7 @@ class LicenseManager
                 return $responseJson;
             }
 
+            Log::error("License Manager Invalid Format. Raw Response: " . $apiResponse->body());
             $response = ["success" => false, "error" => "Invalid response format from License Server"];
             Cache::put($cacheKey, $response, now()->addMinutes(30));
             return $response;
