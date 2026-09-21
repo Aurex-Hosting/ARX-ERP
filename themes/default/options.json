@@ -1,12 +1,37 @@
 {
-    "brand_name": {
-        "type": "text",
-        "label": "Brand Name",
-        "default": "Aurex ERP"
-    },
-    "color_primary": {
-        "type": "color",
-        "label": "Primary Color",
-        "default": "#8b5cf6"
-    }
+    "company_name": "ARX ERP",
+    "company_logo_dark": null,
+    "company_logo_light": null,
+    "topbar_logo_dark": null,
+    "topbar_logo_light": null,
+    "copyright_text": "Aurex Technologies © 2023 - 2026",
+    "topbar_quick_links": [],
+    "color_page_bg": "#030712",
+    "color_card_bg": "#111827",
+    "color_component_surface": "#1f2937",
+    "color_neutral_fill": "#374151",
+    "color_text": "#f9fafb",
+    "color_text_muted": "#9ca3af",
+    "color_text_dim": "#6b7280",
+    "color_accent_primary": "#8b5cf6",
+    "color_accent_secondary": "#a78bfa",
+    "corner_rounding": 12,
+    "font_family": "Onest",
+    "layout_style": "default",
+    "content_width": 1280,
+    "ui_scale": 65,
+    "dashboard_card_style": "random",
+    "auth_background_image": null,
+    "auth_overlay_darkness": 50,
+    "auth_background_blur": 0,
+    "auth_card_opacity": 80,
+    "auth_card_blur": 16,
+    "auth_slides": [{"image": null, "title": "Welcome to ARX ERP", "description": "Manage your business efficiently"}],
+    "auth_slideshow_delay": 5,
+    "auth_quick_links": [],
+    "error_404_background_image": null,
+    "error_404_overlay_darkness": 50,
+    "error_404_background_blur": 0,
+    "error_404_floating_element": null,
+    "error_404_quick_links": []
 }

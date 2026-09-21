@@ -104,6 +104,7 @@ class DashboardPanelProvider extends PanelProvider
             ->databaseNotifications()
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\EnsureOnboardingIsComplete::class,
             ]);
     }
 }
