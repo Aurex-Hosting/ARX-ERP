@@ -261,7 +261,28 @@ class ManageProfile extends Page implements HasForms
             ->sendToDatabase(auth()->user());
     }
 
+    
+    public function getUpdateProfileFormActions(): array
+    {
+        return [
+            \Filament\Actions\Action::make('saveProfile')
+                ->label('Save Personal Information')
+                ->submit('updateProfile')
+                ->keyBindings(['mod+s']),
+        ];
+    }
+
+    public function getUpdatePasswordFormActions(): array
+    {
+        return [
+            \Filament\Actions\Action::make('updatePassword')
+                ->label('Update Password')
+                ->submit('updatePassword'),
+        ];
+    }
+
     public function deleteAccountAction(): Action
+
     {
         return Action::make('deleteAccount')
                 ->label('Delete Account')

@@ -14,7 +14,18 @@ class Plugin extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    
+    protected $schema = [
+        'id' => 'string',
+        'name' => 'string',
+        'description' => 'string',
+        'version' => 'string',
+        'dependencies' => 'text',
+        'status' => 'integer',
+    ];
+
     public function getRows()
+
     {
         return collect(Module::all())->map(function ($module) {
             return [

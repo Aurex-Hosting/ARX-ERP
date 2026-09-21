@@ -46,11 +46,9 @@
         <div x-show="activeTab === 'personal'" x-cloak class="space-y-6">
             <form wire:submit="updateProfile">
                 {{ $this->profileForm }}
-                <div class="mt-4 flex justify-end">
-                    <x-filament::button type="submit">
-                        Save Personal Information
-                    </x-filament::button>
-                </div>
+                <x-filament-panels::form.actions
+                    :actions="$this->getUpdateProfileFormActions()"
+                />
             </form>
         </div>
 
@@ -67,11 +65,9 @@
                 <form wire:submit="updatePassword">
                     {{ $this->passwordForm }}
 
-                    <div class="mt-4 flex justify-end">
-                        <x-filament::button type="submit">
-                            Update Password
-                        </x-filament::button>
-                    </div>
+                    <x-filament-panels::form.actions
+                        :actions="$this->getUpdatePasswordFormActions()"
+                    />
                 </form>
             </x-filament::section>
 

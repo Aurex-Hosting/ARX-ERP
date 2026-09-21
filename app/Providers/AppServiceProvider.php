@@ -48,6 +48,11 @@ class AppServiceProvider extends ServiceProvider
             // Ignore during migrations or when settings aren't migrated yet
         }
 
+                \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Auth\Events\Login::class,
+            \App\Listeners\LogSuccessfulLogin::class
+        );
+        
         \Illuminate\Support\Facades\Event::listen(function (\Spatie\Backup\Events\BackupWasSuccessful $event) {
             \Illuminate\Support\Facades\Log::info('System Backup completed successfully.');
             activity()->log('System backup completed successfully.');

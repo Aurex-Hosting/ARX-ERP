@@ -77,7 +77,7 @@
 </style>
 @livewireStyles
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 antialiased text-obsidian-textPrimary selection:bg-blue-500 selection:text-white relative overflow-hidden">
+<body class="bg-obsidian-background min-h-screen flex items-center justify-center p-4 antialiased text-obsidian-textPrimary selection:bg-blue-500 selection:text-white relative overflow-hidden">
 <!-- Initial Page Loader -->
 <div id="page-loader" class="fixed inset-0 z-[9999999] flex flex-col items-center justify-center bg-obsidian-background transition-opacity duration-700">
     <div class="relative w-16 h-16">

@@ -51,7 +51,7 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(\Filament\View\PanelsRenderHook::TOPBAR_END, fn (): string => \Illuminate\Support\Facades\Blade::render("@include(\"filament.topbar-profile\")"))
             ->renderHook(\Filament\View\PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn (): string => \Illuminate\Support\Facades\Blade::render("@include(\"filament.digital-clock\")"))
             ->brandName(fn () => rescue(fn () => app(\App\Settings\CustomizationSettings::class)->brand_name, "ERP System", false) ?: config("app.name"))
-            ->brandLogo(fn () => rescue(fn () => app(\App\Settings\CustomizationSettings::class)->brand_logo ? asset("storage/".app(\App\Settings\CustomizationSettings::class)->brand_logo) : null, null, false))
+            ->brandLogo(fn () => view('filament.components.brand'))
             ->favicon(rescue(fn () => app(\App\Settings\CustomizationSettings::class)->brand_favicon ? asset("storage/".app(\App\Settings\CustomizationSettings::class)->brand_favicon) : asset("images/Customizations/favicon.png"), asset("images/Customizations/favicon.png"), false))
             ->colors([
                 "primary" => rescue(fn () => \Filament\Support\Colors\Color::hex(app(\App\Settings\CustomizationSettings::class)->color_primary), \Filament\Support\Colors\Color::Amber, false),
