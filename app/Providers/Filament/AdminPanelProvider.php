@@ -50,7 +50,7 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(\Filament\View\PanelsRenderHook::HEAD_START, fn (): string => view("components.custom-colors"))
             ->renderHook(\Filament\View\PanelsRenderHook::TOPBAR_END, fn (): string => \Illuminate\Support\Facades\Blade::render("@include(\"filament.topbar-profile\")"))
             ->renderHook(\Filament\View\PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn (): string => \Illuminate\Support\Facades\Blade::render("@include(\"filament.digital-clock\")"))
-            ->brandName(fn () => rescue(fn () => app(\App\Settings\CustomizationSettings::class)->brand_name, "ERP System", false) ?: config("app.name"))
+            ->brandName(fn () => rescue(fn () => \App\Models\Theme::where('is_active', true)->first()?->options['brand_name'], 'Aurex ERP', false) ?: config('app.name'))
             ->brandLogo(fn () => view('filament.components.brand'))
             ->favicon(rescue(fn () => app(\App\Settings\CustomizationSettings::class)->brand_favicon ? asset("storage/".app(\App\Settings\CustomizationSettings::class)->brand_favicon) : asset("images/Customizations/favicon.png"), asset("images/Customizations/favicon.png"), false))
             ->colors([

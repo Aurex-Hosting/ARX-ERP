@@ -20,8 +20,24 @@ class ManageProfile extends Page implements HasForms
     protected static bool $shouldRegisterNavigation = false;
     protected static ?string $title = 'My Profile';
 
+
     public ?array $profileData = [];
     public ?array $passwordData = [];
+    
+    public bool $hasChanges = false;
+
+    public function updated($propertyName, $value = null): void
+    {
+        if (str_starts_with($propertyName, 'profileData.') || str_starts_with($propertyName, 'passwordData.')) {
+            $this->hasChanges = true;
+        }
+    }
+
+    public function discardChanges()
+    {
+        $this->js('window.location.reload()');
+    }
+
 
     public function mount(): void
     {
@@ -164,6 +180,8 @@ class ManageProfile extends Page implements HasForms
                     ->markAsRead(),
             ])
             ->sendToDatabase(auth()->user());
+        
+        $this->js("setTimeout(() => window.location.reload(), 300);");
     }
 
     
@@ -200,6 +218,8 @@ class ManageProfile extends Page implements HasForms
                     ->markAsRead(),
             ])
             ->sendToDatabase(auth()->user());
+            
+        $this->js("setTimeout(() => window.location.reload(), 300);");
     }
 
     public function revokeAllSessions(): void

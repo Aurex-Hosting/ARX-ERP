@@ -1,0 +1,12 @@
+{
+    "brand_name": {
+        "type": "text",
+        "label": "Brand Name",
+        "default": "Aurex ERP"
+    },
+    "color_primary": {
+        "type": "color",
+        "label": "Primary Color",
+        "default": "#8b5cf6"
+    }
+}
