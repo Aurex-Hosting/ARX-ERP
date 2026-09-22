@@ -19,8 +19,6 @@ $accentPrimary = $options['color_accent_primary'] ?? '#8b5cf6';
 $accentSecondary = $options['color_accent_secondary'] ?? '#a78bfa';
 $cornerRounding = ($options['corner_rounding'] ?? 12) . 'px';
 $fontFamily = $options['font_family'] ?? 'Onest';
-$uiScale = ($options['ui_scale'] ?? 100);
-$contentWidth = ($options['content_width'] ?? 1280) . 'px';
 $layoutStyle = $options['layout_style'] ?? 'default';
 $dashboardCardStyle = $options['dashboard_card_style'] ?? 'random';
 @endphp
@@ -44,29 +42,11 @@ $dashboardCardStyle = $options['dashboard_card_style'] ?? 'random';
         --theme-accent-secondary: {{ $accentSecondary }};
         --theme-corner-rounding: {{ $cornerRounding }};
         --theme-font-family: '{{ $fontFamily }}', sans-serif;
-        --theme-ui-scale: {{ $uiScale / 100 }};
-        --theme-content-width: {{ $contentWidth }};
     }
 
     /* Apply global Font Family */
     body, .fi-body, input, button, select, textarea, .fi-sidebar, .fi-topbar {
         font-family: var(--theme-font-family) !important;
-    }
-
-    /* Apply UI Scale */
-    @if($uiScale < 100)
-    body.fi-body {
-        zoom: var(--theme-ui-scale);
-    }
-    @endif
-
-    /* Apply Content Max Width */
-    .fi-page-content-ctn,
-    .fi-main > div,
-    .fi-main-ctn {
-        max-width: var(--theme-content-width) !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
     }
 
     /* Apply Corner Rounding */
@@ -185,7 +165,7 @@ $dashboardCardStyle = $options['dashboard_card_style'] ?? 'random';
     @if($layoutStyle === 'floating')
         .fi-sidebar {
             margin: 1rem !important;
-            border-radius: 1.5rem !important;
+            border-radius: 1.25rem !important;
             height: calc(100vh - 2rem) !important;
             border: 1px solid rgba(255,255,255,0.08) !important;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
@@ -207,7 +187,7 @@ $dashboardCardStyle = $options['dashboard_card_style'] ?? 'random';
                 left: 0 !important;
                 right: 0 !important;
                 width: 100% !important;
-                height: 64px !important;
+                height: 60px !important;
                 display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
@@ -219,7 +199,7 @@ $dashboardCardStyle = $options['dashboard_card_style'] ?? 'random';
                 display: flex !important;
             }
             .fi-main {
-                padding-bottom: 80px !important;
+                padding-bottom: 75px !important;
             }
         }
     @endif
@@ -267,9 +247,7 @@ $dashboardCardStyle = $options['dashboard_card_style'] ?? 'random';
                 'color_accent_primary': '--theme-accent-primary',
                 'color_accent_secondary': '--theme-accent-secondary',
                 'corner_rounding': '--theme-corner-rounding',
-                'font_family': '--theme-font-family',
-                'ui_scale': '--theme-ui-scale',
-                'content_width': '--theme-content-width'
+                'font_family': '--theme-font-family'
             };
 
             for (const [key, cssVar] of Object.entries(mappings)) {
@@ -278,13 +256,6 @@ $dashboardCardStyle = $options['dashboard_card_style'] ?? 'random';
 
                     if (key === 'corner_rounding') {
                         value = value + 'px';
-                    } else if (key === 'content_width') {
-                        value = value + 'px';
-                    } else if (key === 'ui_scale') {
-                        value = (Number(value) / 100);
-                        if (document.body) {
-                            document.body.style.zoom = value;
-                        }
                     } else if (key === 'font_family') {
                         const fontSlug = String(value).replace(/\s+/g, '-');
                         const linkId = 'theme-google-font-' + fontSlug;
