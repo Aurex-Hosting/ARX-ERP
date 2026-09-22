@@ -15,6 +15,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\ViewField;
 use App\Models\Theme;
 use Illuminate\Support\Facades\Cache;
 use Filament\Notifications\Notification;
@@ -265,16 +266,8 @@ class ThemeManager extends Page implements HasForms
             Section::make('Layout Style')
                 ->description('Choose how the panel navigation is rendered.')
                 ->schema([
-                    Select::make('layout_style')
-                        ->label('Navigation Layout')
-                        ->options([
-                            'default' => '📋 Default — Standard sidebar on the left',
-                            'navbar' => '📌 Navbar — Horizontal navigation at the top',
-                            'floating' => '🔲 Floating Sidebar — Rounded edges, floating',
-                            'bottom_bar' => '⬇️ Bottom Bar — Navigation pinned at the bottom',
-                        ])
-                        ->default('default')
-                        ->live(debounce: 300),
+                    ViewField::make('layout_style')
+                        ->view('filament.components.layout-style-picker'),
                 ]),
 
             Section::make('Content Width')
@@ -300,24 +293,16 @@ class ThemeManager extends Page implements HasForms
                         ->suffix('%')
                         ->minValue(50)
                         ->maxValue(100)
-                        ->default(65)
-                        ->helperText('65% is the default; 100% is the browser\'s own size. Does not affect this admin area.')
+                        ->default(100)
+                        ->helperText('100% is the default; 65% is scaled down. Affects client panels.')
                         ->live(debounce: 300),
                 ]),
 
             Section::make('Dashboard Overview')
                 ->description('How the overview page widgets should be aligned.')
                 ->schema([
-                    Select::make('dashboard_card_style')
-                        ->label('Card Style')
-                        ->options([
-                            'stacked' => '📊 Stacked — Full width cards on rows',
-                            'two_column' => '📊 2 Column Grid — Two cards per row',
-                            'three_column' => '📊 3 Column Grid — Three cards per row',
-                            'random' => '🎲 Random — Automatically adjusted widths (Default)',
-                        ])
-                        ->default('random')
-                        ->live(debounce: 300),
+                    ViewField::make('dashboard_card_style')
+                        ->view('filament.components.card-style-picker'),
                 ]),
         ];
     }

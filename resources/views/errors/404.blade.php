@@ -5,15 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>404 - Not Found</title>
     @php
-        $settings = app(\App\Settings\CustomizationSettings::class);
-        $primaryColor = rescue(fn () => $settings->color_primary, '#38bdf8', false);
-        $bgColor = rescue(fn () => $settings->color_background, '#12141c', false);
-        $textPrimary = rescue(fn () => $settings->color_text_primary, '#ffffff', false);
-        $textMuted = rescue(fn () => $settings->color_text_secondary, '#9ca3af', false);
+        $theme = \Illuminate\Support\Facades\Cache::remember('active_theme', 3600, fn () => \App\Models\Theme::where('is_active', true)->first());
+        $opts = $theme?->options ?? [];
+
+        $primaryColor = $opts['color_accent_primary'] ?? '#38bdf8';
+        $bgColor = $opts['color_page_bg'] ?? '#12141c';
+        $textPrimary = $opts['color_text'] ?? '#ffffff';
+        $textMuted = $opts['color_text_muted'] ?? '#9ca3af';
         
-        $bgImage = rescue(fn () => $settings->error_404_background_image ? asset('storage/'.$settings->error_404_background_image) : '/images/Customizations/404-backgroun.png', '/images/Customizations/404-backgroun.png', false);
-        $bgOpacity = rescue(fn () => $settings->error_404_background_opacity / 100, 0.7, false);
-        $bgBlur = rescue(fn () => $settings->error_404_background_blur, 0, false);
+        $bgImage = !empty($opts['error_404_background_image']) ? asset('storage/'.$opts['error_404_background_image']) : asset('images/Customizations/404-backgroun.png');
+        $bgOpacity = isset($opts['error_404_overlay_darkness']) ? (1 - ($opts['error_404_overlay_darkness'] / 100)) : 0.7;
+        $bgBlur = $opts['error_404_background_blur'] ?? 0;
+        $floatingElement = !empty($opts['error_404_floating_element']) ? asset('storage/'.$opts['error_404_floating_element']) : asset('images/Customizations/astronot.png');
+        $quickLinks = $opts['error_404_quick_links'] ?? [];
     @endphp
     <style>
         :root {
@@ -46,8 +50,36 @@
             opacity: var(--bg-opacity);
             filter: var(--bg-blur);
             z-index: 1;
-            /* smooth transition for parallax */
             transition: transform 0.1s ease-out; 
+        }
+        .quick-links-bar {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .quick-link-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.9rem;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .quick-link-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
         }
         .container {
             position: relative;
@@ -105,7 +137,7 @@
             transform: translateY(1px) scale(0.98);
         }
         
-        /* Floating Astronaut */
+        /* Floating Element */
         .astronaut-container {
             position: absolute;
             right: 15%;
@@ -133,10 +165,31 @@
 <body>
     <!-- Parallax Background -->
     <div class="bg-image" id="parallax-bg"></div>
+
+    <!-- Quick Links Bar in top right -->
+    @if(!empty($quickLinks))
+    <div class="quick-links-bar">
+        @foreach($quickLinks as $qlink)
+            @if($qlink['enabled'] ?? true)
+                @php
+                    $qurl = $qlink['url'] ?? '#';
+                    $qtext = $qlink['text'] ?? '';
+                    $qicon = !empty($qlink['icon']) ? asset('storage/'.$qlink['icon']) : null;
+                @endphp
+                <a href="{{ $qurl }}" target="_blank" rel="noopener noreferrer" class="quick-link-btn">
+                    @if($qicon)
+                        <img src="{{ $qicon }}" style="width: 14px; height: 14px; object-fit: contain;" />
+                    @endif
+                    <span>{{ $qtext }}</span>
+                </a>
+            @endif
+        @endforeach
+    </div>
+    @endif
     
-    <!-- Floating Astronaut -->
+    <!-- Floating Element -->
     <div class="astronaut-container" id="parallax-astronaut">
-        <img src="/images/Customizations/astronot.png" alt="Lost Astronaut" class="astronaut">
+        <img src="{{ $floatingElement }}" alt="Floating Element" id="floating-elem-img" class="astronaut">
     </div>
     
     <!-- Content -->
@@ -153,13 +206,30 @@
             const bg = document.getElementById('parallax-bg');
             const astronaut = document.getElementById('parallax-astronaut');
             
-            // Calculate mouse position relative to center of screen
             const xAxis = (window.innerWidth / 2 - e.pageX) / 50;
             const yAxis = (window.innerHeight / 2 - e.pageY) / 50;
             
-            // Move background and astronaut in opposite directions for depth
             if(bg) bg.style.transform = `translate(${xAxis}px, ${yAxis}px)`;
             if(astronaut) astronaut.style.transform = `translate(${xAxis * -1.5}px, ${yAxis * -1.5}px)`;
+        });
+
+        // Real-time postMessage listener
+        window.addEventListener('message', function (event) {
+            if (event.data && event.data.type === 'THEME_UPDATE') {
+                const payload = event.data.payload || {};
+                const root = document.documentElement;
+
+                if (payload.color_accent_primary) root.style.setProperty('--primary', payload.color_accent_primary);
+                if (payload.color_page_bg) root.style.setProperty('--bg', payload.color_page_bg);
+                if (payload.color_text) root.style.setProperty('--text', payload.color_text);
+                if (payload.color_text_muted) root.style.setProperty('--muted', payload.color_text_muted);
+                if (payload.error_404_overlay_darkness !== undefined) {
+                    root.style.setProperty('--bg-opacity', 1 - (Number(payload.error_404_overlay_darkness) / 100));
+                }
+                if (payload.error_404_background_blur !== undefined) {
+                    root.style.setProperty('--bg-blur', 'blur(' + payload.error_404_background_blur + 'px)');
+                }
+            }
         });
     </script>
 </body>

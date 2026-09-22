@@ -49,16 +49,18 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(\Filament\View\PanelsRenderHook::BODY_END, fn (): string => view("components.water-splash"))
             ->renderHook(\Filament\View\PanelsRenderHook::HEAD_START, fn (): string => view("components.custom-colors"))
             ->renderHook(\Filament\View\PanelsRenderHook::TOPBAR_END, fn (): string => \Illuminate\Support\Facades\Blade::render("@include(\"filament.topbar-profile\")"))
-            ->renderHook(\Filament\View\PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn (): string => \Illuminate\Support\Facades\Blade::render("@include(\"filament.digital-clock\")"))
-            ->brandName(fn () => rescue(fn () => \App\Models\Theme::where('is_active', true)->first()?->options['brand_name'], 'Aurex ERP', false) ?: config('app.name'))
+            ->renderHook(\Filament\View\PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn (): string => \Illuminate\Support\Facades\Blade::render("<div class='flex items-center gap-1'>@include('filament.components.topbar-quick-links')@include('filament.digital-clock')</div>"))
+            ->brandName(fn () => rescue(fn () => \App\Models\Theme::where('is_active', true)->first()?->options['company_name'], 'Aurex ERP', false) ?: config('app.name'))
             ->brandLogo(fn () => view('filament.components.brand'))
-            ->favicon(rescue(fn () => app(\App\Settings\CustomizationSettings::class)->brand_favicon ? asset("storage/".app(\App\Settings\CustomizationSettings::class)->brand_favicon) : asset("images/Customizations/favicon.png"), asset("images/Customizations/favicon.png"), false))
-            ->colors([
-                "primary" => rescue(fn () => \Filament\Support\Colors\Color::hex(app(\App\Settings\CustomizationSettings::class)->color_primary), \Filament\Support\Colors\Color::Amber, false),
-                "secondary" => rescue(fn () => \Filament\Support\Colors\Color::hex(app(\App\Settings\CustomizationSettings::class)->color_secondary), \Filament\Support\Colors\Color::Gray, false),
-                "info" => rescue(fn () => \Filament\Support\Colors\Color::hex(app(\App\Settings\CustomizationSettings::class)->color_accent), \Filament\Support\Colors\Color::Blue, false),
-                "gray" => rescue(fn () => \Filament\Support\Colors\Color::hex(app(\App\Settings\CustomizationSettings::class)->color_background), \Filament\Support\Colors\Color::Zinc, false),
-            ])
+            ->favicon(asset("images/Customizations/favicon.png"))
+            ->colors(rescue(function () {
+                $theme = \Illuminate\Support\Facades\Cache::remember('active_theme', 3600, fn () => \App\Models\Theme::where('is_active', true)->first());
+                $opts = $theme?->options ?? [];
+                return [
+                    "primary" => isset($opts['color_accent_primary']) ? \Filament\Support\Colors\Color::hex($opts['color_accent_primary']) : \Filament\Support\Colors\Color::Violet,
+                    "gray" => \Filament\Support\Colors\Color::Zinc,
+                ];
+            }, ["primary" => \Filament\Support\Colors\Color::Violet, "gray" => \Filament\Support\Colors\Color::Zinc], false))
             ->discoverResources(in: app_path("Filament/Resources"), for: "App\Filament\Resources")
             ->discoverPages(in: app_path("Filament/Pages"), for: "App\Filament\Pages")
             ->pages([

@@ -1,17 +1,43 @@
+@php
+    $theme = \Illuminate\Support\Facades\Cache::remember('active_theme', 3600, fn () => \App\Models\Theme::where('is_active', true)->first());
+    $opts = $theme?->options ?? [];
+
+    $brandLogo = !empty($opts['company_logo_dark']) ? asset('storage/'.$opts['company_logo_dark']) : (!empty($opts['topbar_logo_dark']) ? asset('storage/'.$opts['topbar_logo_dark']) : asset('images/Customizations/logo.png'));
+    $brandName = $opts['company_name'] ?? 'Aurex ERP';
+    $copyrightText = $opts['copyright_text'] ?? ('© ' . date('Y') . ' Aurex Technologies');
+    $slideshowDelay = ($opts['auth_slideshow_delay'] ?? 5) * 1000;
+
+    $defaultSlides = [
+        [
+            'image' => asset('images/Customizations/login-graphic.png'),
+            'title' => 'Flexible by Design',
+            'description' => 'Customize workflows, modules, roles, and experiences around your business.'
+        ],
+        [
+            'image' => asset('images/Customizations/login-graphic2.png'),
+            'title' => 'Secure by Default',
+            'description' => 'Protect your business with role-based access, authentication, and centralized control.'
+        ]
+    ];
+    $dynamicSlides = $opts['auth_slides'] ?? [];
+    $slides = !empty($dynamicSlides) ? array_map(function($slide) {
+        return [
+            'image' => !empty($slide['image']) ? asset('storage/'.$slide['image']) : asset('images/Customizations/login-graphic.png'),
+            'title' => $slide['title'] ?? 'Welcome',
+            'description' => $slide['description'] ?? '',
+        ];
+    }, $dynamicSlides) : $defaultSlides;
+@endphp
+
 <main class="glass-panel relative z-10 w-full max-w-[1000px] rounded-5xl border border-gray-800 flex flex-col md:flex-row overflow-hidden min-h-[600px] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
 <!-- BEGIN: Left Column - Login Form -->
 <section class="flex-1 p-10 md:p-16 flex flex-col justify-center relative">
 <div class="max-w-sm w-full mx-auto flex flex-col justify-between h-full">
 <div>
-@php
-    $settings = app(\App\Settings\CustomizationSettings::class);
-    $brandLogo = rescue(fn () => $settings->brand_logo ? asset('storage/'.$settings->brand_logo) : asset('images/Customizations/logo.png'), asset('images/Customizations/logo.png'), false);
-    $brandName = rescue(fn () => $settings->brand_name, 'Aurex ERP', false);
-@endphp
 <!-- Logo Area -->
 <div class="flex items-center gap-3 mb-10">
-    <img src="{{ $brandLogo }}" alt="{{ $brandName }}" class="h-8 w-auto object-contain" />
-    <span class="text-xl font-bold tracking-wide text-white">{{ $brandName }}</span>
+    <img src="{{ $brandLogo }}" alt="{{ $brandName }}" id="login-brand-logo" class="h-8 w-auto object-contain" />
+    <span class="text-xl font-bold tracking-wide text-white" id="login-brand-name">{{ $brandName }}</span>
 </div>
 
 <!-- Header Area -->
@@ -174,15 +200,12 @@
 
 <!-- Status Overlays -->
 <div x-cloak x-show="['loading', 'success', 'error', 'loading_2fa', 'success_2fa', 'error_2fa'].includes(status)" class="absolute inset-0 flex items-center justify-center z-10">
-    <!-- Loading Spinner -->
     <div x-show="['loading', 'loading_2fa'].includes(status)" class="relative w-16 h-16">
         <div class="absolute inset-0 border-4 border-obsidian-inputBorder rounded-full"></div>
         <div class="absolute inset-0 border-4 border-[#34d399] rounded-full border-t-transparent animate-spin"></div>
     </div>
 
-    <!-- Success Checkmark -->
     <div x-show="['success', 'success_2fa'].includes(status)" class="relative flex items-center justify-center">
-        <!-- Particle Burst -->
         <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
             <div class="absolute w-1.5 h-6 bg-[#34d399] rounded-full animate-success-burst" style="--deg: 0deg;"></div>
             <div class="absolute w-1.5 h-6 bg-[#34d399] rounded-full animate-success-burst" style="--deg: 45deg;"></div>
@@ -202,7 +225,6 @@
         </div>
     </div>
 
-    <!-- Error Cross -->
     <div x-show="['error', 'error_2fa'].includes(status)"
          x-transition:enter="transition ease-out duration-300 transform"
          x-transition:enter-start="opacity-0 scale-50"
@@ -216,8 +238,8 @@
 
 <!-- Footer Area -->
 <footer class="mt-16 text-center">
-<p class="text-xs text-obsidian-textMuted">
-    &copy; {{ date('Y') }} Aurex Technologies
+<p class="text-xs text-obsidian-textMuted" id="login-copyright-text">
+    {{ $copyrightText }}
 </p>
 </footer>
 </div>
@@ -225,28 +247,6 @@
 <!-- END: Left Column - Login Form -->
 <!-- BEGIN: Right Column - Feature Showcase -->
 <section class="flex-1 p-4 md:p-6 hidden md:block">
-@php
-    $defaultSlides = [
-        [
-            'image' => asset('images/Customizations/login-graphic.png'),
-            'title' => 'Flexible by Design',
-            'description' => 'Customize workflows, modules, roles, and experiences around your business.'
-        ],
-        [
-            'image' => asset('images/Customizations/login-graphic2.png'),
-            'title' => 'Secure by Default',
-            'description' => 'Protect your business with role-based access, authentication, and centralized control.'
-        ]
-    ];
-    $dynamicSlides = rescue(fn () => $settings->login_slides, [], false);
-    $slides = !empty($dynamicSlides) ? array_map(function($slide) {
-        return [
-            'image' => asset('storage/'.$slide['image']),
-            'title' => $slide['title'],
-            'description' => $slide['description'],
-        ];
-    }, $dynamicSlides) : $defaultSlides;
-@endphp
 <div x-data='{ 
         activeSlide: 0, 
         slides: @json($slides),
@@ -257,7 +257,7 @@
             this.activeSlide = this.activeSlide === 0 ? this.slides.length - 1 : this.activeSlide - 1;
         }
     }' 
-    x-init="setInterval(() => next(), 5000)"
+    x-init="setInterval(() => next(), {{ $slideshowDelay }})"
     class="feature-panel w-full h-full rounded-4xl border border-gray-700/50 flex flex-col items-center justify-center text-center p-10 relative overflow-hidden shadow-inner">
 <!-- Top decorative element -->
 <div class="absolute top-8 left-8 flex items-center gap-2 z-10">
