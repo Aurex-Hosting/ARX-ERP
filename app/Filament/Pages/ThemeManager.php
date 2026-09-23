@@ -16,6 +16,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\ViewField;
+use Filament\Forms\Components\Tabs;
 use App\Models\Theme;
 use Illuminate\Support\Facades\Cache;
 use Filament\Notifications\Notification;
@@ -74,19 +75,25 @@ class ThemeManager extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form
-            ->schema($this->getActiveSchema())
+            ->schema([
+                Tabs::make('theme_sections')
+                    ->tabs([
+                        Tabs\Tab::make('general')
+                            ->label('General')
+                            ->schema($this->getGeneralSchema()),
+                        Tabs\Tab::make('theme')
+                            ->label('Theme')
+                            ->schema($this->getThemeSchema()),
+                        Tabs\Tab::make('layout')
+                            ->label('Layout')
+                            ->schema($this->getLayoutSchema()),
+                        Tabs\Tab::make('pages')
+                            ->label('Pages')
+                            ->schema($this->getPagesSchema()),
+                    ])
+                    ->extraAttributes(['class' => 'theme-custom-tabs'])
+            ])
             ->statePath('themeData');
-    }
-
-    protected function getActiveSchema(): array
-    {
-        return match ($this->activeSection) {
-            'general' => $this->getGeneralSchema(),
-            'theme' => $this->getThemeSchema(),
-            'layout' => $this->getLayoutSchema(),
-            'pages' => $this->getPagesSchema(),
-            default => $this->getGeneralSchema(),
-        };
     }
 
     // ─── SECTION 1: GENERAL ───────────────────────────────────────────

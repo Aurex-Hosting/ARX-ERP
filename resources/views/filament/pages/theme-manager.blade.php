@@ -1,12 +1,29 @@
 <style>
-    /* Clean, minimal, flat Filament form styling matching reference */
+    /* Hide Filament's default tab navigation header since we use the custom icon sidebar */
+    .theme-custom-tabs > nav,
+    .theme-custom-tabs > .fi-tabs,
+    .theme-custom-tabs .fi-tabs-nav {
+        display: none !important;
+    }
+    .theme-custom-tabs {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+    .theme-custom-tabs .fi-tabs-content {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Clean, minimal, flat Filament form styling */
     .theme-editor-form .fi-section {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
         ring: none !important;
         padding: 0 !important;
-        margin-bottom: 1rem !important;
+        margin-bottom: 1.15rem !important;
         --tw-ring-shadow: none !important;
         --tw-shadow: none !important;
     }
@@ -15,17 +32,17 @@
         background: transparent !important;
     }
     .theme-editor-form .fi-section-header {
-        padding: 0 0 0.35rem 0 !important;
+        padding: 0 0 0.4rem 0 !important;
         border: none !important;
     }
     .theme-editor-form .fi-section-header-heading {
-        font-size: 0.8rem !important;
+        font-size: 0.8125rem !important;
         font-weight: 700 !important;
         color: #f1f5f9 !important;
-        letter-spacing: 0.01em;
+        letter-spacing: 0.015em;
     }
     .theme-editor-form .fi-section-header-description {
-        font-size: 0.65rem !important;
+        font-size: 0.6875rem !important;
         color: #94a3b8 !important;
         margin-top: 0.1rem !important;
     }
@@ -34,8 +51,8 @@
     }
     /* Compact inputs */
     .theme-editor-form .fi-fo-field-wrp {
-        gap: 0.2rem !important;
-        margin-bottom: 0.5rem !important;
+        gap: 0.25rem !important;
+        margin-bottom: 0.6rem !important;
     }
     .theme-editor-form .fi-input-wrp {
         background: rgba(255,255,255,0.03) !important;
@@ -51,26 +68,26 @@
     .theme-editor-form .fi-input-wrp select,
     .theme-editor-form .fi-input-wrp textarea {
         color: #ffffff !important;
-        font-size: 0.75rem !important;
-        padding: 0.35rem 0.5rem !important;
+        font-size: 0.775rem !important;
+        padding: 0.4rem 0.6rem !important;
     }
     .theme-editor-form .fi-fo-field-wrp label {
-        font-size: 0.6875rem !important;
+        font-size: 0.7rem !important;
         font-weight: 600 !important;
         color: #cbd5e1 !important;
     }
     .theme-editor-form .fi-fo-helper-text {
-        font-size: 0.6rem !important;
+        font-size: 0.625rem !important;
         color: #64748b !important;
-        line-height: 1.15 !important;
+        line-height: 1.2 !important;
     }
     /* Compact color pickers */
     .theme-editor-form .fi-color-picker-preview {
-        width: 1.4rem !important;
-        height: 1.4rem !important;
+        width: 1.5rem !important;
+        height: 1.5rem !important;
         border-radius: 0.375rem !important;
     }
-    /* Compact File upload (square logo preview cards) */
+    /* Compact File upload */
     .theme-editor-form .filepond--root {
         min-height: 65px !important;
         max-height: 75px !important;
@@ -96,8 +113,8 @@
         background: rgba(255,255,255,0.02) !important;
         border: 1px solid rgba(255,255,255,0.06) !important;
         border-radius: 0.5rem !important;
-        margin-bottom: 0.4rem !important;
-        padding: 0.4rem !important;
+        margin-bottom: 0.45rem !important;
+        padding: 0.45rem !important;
     }
     /* Custom Scrollbar */
     .theme-scroll::-webkit-scrollbar { width: 4px; }
@@ -108,20 +125,30 @@
 
 <div
     x-data="{
-        activeSection: @entangle('activeSection'),
+        activeSection: 'general',
         device: 'desktop',
         previewPage: '/admin',
         sections: [
-            { id: 'general', label: 'General', subtitle: 'Site name and branding', icon: 'cog' },
-            { id: 'theme', label: 'Theme', subtitle: 'Colours, border radius, and fonts', icon: 'palette' },
-            { id: 'layout', label: 'Layout', subtitle: 'Layout and component styling', icon: 'layout' },
-            { id: 'pages', label: 'Pages', subtitle: 'Auth & 404 error page styles', icon: 'document' },
+            { id: 'general', label: 'General', subtitle: 'Site name and branding', icon: 'cog', index: 0 },
+            { id: 'theme', label: 'Theme', subtitle: 'Colours, border radius, and fonts', icon: 'palette', index: 1 },
+            { id: 'layout', label: 'Layout', subtitle: 'Layout and component styling', icon: 'layout', index: 2 },
+            { id: 'pages', label: 'Pages', subtitle: 'Auth & 404 error page styles', icon: 'document', index: 3 },
         ],
         comingSoon: [
             { label: 'Admin Overview', icon: 'chart' },
             { label: 'Dashboard Overview', icon: 'grid' },
             { label: 'SEO', icon: 'globe' },
         ],
+        selectTab(sec) {
+            this.activeSection = sec.id;
+            const tabs = document.querySelectorAll('.theme-custom-tabs button[role=\'tab\']');
+            if (tabs[sec.index]) {
+                tabs[sec.index].click();
+            }
+            if (sec.id === 'pages' && this.previewPage === '/admin') {
+                this.changePreviewPage('/admin/login');
+            }
+        },
         refreshPreview() {
             const iframe = document.getElementById('theme-preview-iframe');
             if (iframe) iframe.src = this.previewPage;
@@ -131,48 +158,44 @@
             const iframe = document.getElementById('theme-preview-iframe');
             if (iframe) iframe.src = page;
         },
+        sendThemeUpdate() {
+            const iframe = document.getElementById('theme-preview-iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'THEME_UPDATE',
+                    payload: $wire.get('themeData')
+                }, '*');
+            }
+        },
         init() {
-            this.$watch('$wire.themeData', value => {
-                const iframe = document.getElementById('theme-preview-iframe');
-                if (iframe && iframe.contentWindow) {
-                    iframe.contentWindow.postMessage({
-                        type: 'THEME_UPDATE',
-                        payload: value
-                    }, '*');
-                }
+            this.$watch('$wire.themeData', () => {
+                this.sendThemeUpdate();
             }, { deep: true });
-
-            this.$watch('activeSection', section => {
-                if (section === 'pages' && this.previewPage === '/admin') {
-                    this.changePreviewPage('/admin/login');
-                }
-            });
         }
     }"
-    class="flex h-screen w-screen overflow-hidden text-white font-sans select-none"
+    class="flex h-screen w-screen overflow-hidden text-white font-sans"
     style="background: #07080d;"
 >
 
     {{-- ═══════════════════════════════════════════════════════════════ --}}
-    {{-- LEFT SIDEBAR WRAPPER (Icon Bar + 280px Controls Panel) --}}
+    {{-- EDIT OPTIONS PANEL (1/3 SCREEN WIDTH) --}}
     {{-- ═══════════════════════════════════════════════════════════════ --}}
-    <div class="flex h-full shrink-0 z-20" style="background: #0d0e17; border-right: 1px solid rgba(255,255,255,0.06);">
+    <div class="w-1/3 min-w-[320px] max-w-[460px] h-full shrink-0 flex z-20" style="background: #0d0e17; border-right: 1px solid rgba(255,255,255,0.06);">
         
-        {{-- Far-Left Slim Icon Bar (52px) --}}
-        <div class="flex flex-col w-[52px] shrink-0 items-center justify-between py-3 h-full" style="border-right: 1px solid rgba(255,255,255,0.05); background: #0a0b12;">
-            {{-- Section Switcher Icons --}}
+        {{-- Far-Left Slim Icon Sidebar (52px) --}}
+        <div class="flex flex-col w-[52px] shrink-0 items-center justify-between py-3.5 h-full select-none" style="border-right: 1px solid rgba(255,255,255,0.05); background: #0a0b12;">
+            
+            {{-- Top: Navigation Section Icons --}}
             <div class="flex flex-col items-center gap-2 w-full px-1">
                 <template x-for="(section, index) in sections" :key="section.id">
                     <div class="relative group w-full flex justify-center">
                         <button
-                            @click="$wire.switchSection(section.id)"
+                            type="button"
+                            @click="selectTab(section)"
                             :class="activeSection === section.id
-                                ? 'text-white shadow-lg shadow-purple-900/40'
+                                ? 'text-white shadow-lg shadow-purple-900/40 bg-[#7c3aed]'
                                 : 'text-gray-400 hover:text-white hover:bg-white/5'"
-                            :style="activeSection === section.id
-                                ? 'background: #7c3aed;'
-                                : ''"
-                            class="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200"
+                            class="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer"
                         >
                             <template x-if="section.icon === 'cog'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
@@ -196,7 +219,7 @@
                 {{-- Coming Soon Icons --}}
                 <template x-for="(item, index) in comingSoon" :key="item.label">
                     <div class="relative group w-full flex justify-center">
-                        <button class="w-9 h-9 rounded-xl flex items-center justify-center text-gray-600 cursor-not-allowed opacity-40" disabled>
+                        <button type="button" class="w-9 h-9 rounded-xl flex items-center justify-center text-gray-600 cursor-not-allowed opacity-40" disabled>
                             <template x-if="item.icon === 'chart'">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
                             </template>
@@ -211,19 +234,80 @@
                 </template>
             </div>
 
-            {{-- Back to Admin Button --}}
-            <div class="w-full flex justify-center pb-1">
-                <a href="{{ url('/admin') }}" class="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-all group relative" title="Back to Admin">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+            {{-- Bottom: Action Buttons (Reset, Import, Export, SAVE CHECKMARK, Back) --}}
+            <div class="flex flex-col items-center gap-2 w-full px-1">
+                {{-- Discard / Reset (Red) --}}
+                <div class="relative group w-full flex justify-center">
+                    <button
+                        type="button"
+                        wire:click="discardChanges"
+                        class="w-9 h-9 rounded-xl flex items-center justify-center bg-[#251829] text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-red-900/30 transition-all cursor-pointer"
+                        title="Discard Changes"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>
+                    </button>
+                    <div class="absolute left-[46px] top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap hidden group-hover:block z-[100] shadow-xl pointer-events-none" style="background: #181926; color: #f87171; border: 1px solid rgba(255,255,255,0.1);">Discard Changes</div>
+                </div>
+
+                {{-- Import Theme --}}
+                <div class="relative group w-full flex justify-center">
+                    <button
+                        type="button"
+                        class="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5 transition-all cursor-pointer"
+                        title="Import Theme"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                    </button>
+                    <div class="absolute left-[46px] top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap hidden group-hover:block z-[100] shadow-xl pointer-events-none" style="background: #181926; color: #f1f5f9; border: 1px solid rgba(255,255,255,0.1);">Import Theme</div>
+                </div>
+
+                {{-- Export Theme --}}
+                <div class="relative group w-full flex justify-center">
+                    <button
+                        type="button"
+                        class="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5 transition-all cursor-pointer"
+                        title="Export Theme"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    </button>
+                    <div class="absolute left-[46px] top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap hidden group-hover:block z-[100] shadow-xl pointer-events-none" style="background: #181926; color: #f1f5f9; border: 1px solid rgba(255,255,255,0.1);">Export Theme</div>
+                </div>
+
+                {{-- SAVE BUTTON AS CORRECTION MARK / CHECKMARK (✓) --}}
+                <div class="relative group w-full flex justify-center">
+                    <button
+                        type="button"
+                        wire:click="saveTheme"
+                        wire:loading.attr="disabled"
+                        class="w-9 h-9 rounded-xl flex items-center justify-center text-white bg-[#7c3aed] hover:bg-[#6d28d9] shadow-lg shadow-purple-900/50 transition-all active:scale-95 cursor-pointer"
+                        title="Save Changes"
+                    >
+                        <svg wire:loading.remove wire:target="saveTheme" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        <div wire:loading wire:target="saveTheme" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </button>
+                    <div class="absolute left-[46px] top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap hidden group-hover:block z-[100] shadow-xl pointer-events-none" style="background: #181926; color: #a78bfa; border: 1px solid rgba(255,255,255,0.1);">Save Changes (✓)</div>
+                </div>
+
+                {{-- Back to Admin --}}
+                <div class="relative group w-full flex justify-center">
+                    <a
+                        href="{{ url('/admin') }}"
+                        class="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                        title="Back to Admin"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+                    </a>
                     <div class="absolute left-[46px] top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap hidden group-hover:block z-[100] shadow-xl pointer-events-none" style="background: #181926; color: #f1f5f9; border: 1px solid rgba(255,255,255,0.1);">Back to Admin</div>
-                </a>
+                </div>
             </div>
         </div>
 
-        {{-- Form Controls Column (Strictly 280px fixed width) --}}
-        <div class="flex flex-col w-[280px] shrink-0 h-full relative" style="background: #0d0e17;">
+        {{-- Form Content Column (Takes full remaining vertical height without bottom bar) --}}
+        <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden" style="background: #0d0e17;">
             {{-- Section Title Header --}}
-            <div class="px-4 py-3 shrink-0" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div class="px-5 py-3.5 shrink-0 select-none" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
                 <template x-for="section in sections" :key="section.id">
                     <div x-show="activeSection === section.id" x-cloak>
                         <h2 class="text-sm font-bold text-white tracking-tight" x-text="section.label"></h2>
@@ -232,80 +316,54 @@
                 </template>
             </div>
 
-            {{-- Scrollable Form Controls (flex-1 min-h-0 so it scrolls cleanly without pushing footer) --}}
-            <div class="flex-1 min-h-0 overflow-y-auto px-4 py-3 theme-editor-form theme-scroll">
+            {{-- Scrollable Form Content (100% full vertical height, no bottom bar!) --}}
+            <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 theme-editor-form theme-scroll">
                 {{ $this->form }}
-            </div>
-
-            {{-- Pinned Bottom Action Footer --}}
-            <div class="p-2.5 shrink-0 bg-[#0d0e17]" style="border-top: 1px solid rgba(255,255,255,0.06);">
-                <div class="flex items-center gap-1.5 w-full">
-                    {{-- Discard Changes (Red reset button) --}}
-                    <button wire:click="discardChanges" class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#251829] text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-red-900/30 transition-all shrink-0" title="Discard Changes">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>
-                    </button>
-                    {{-- Import Theme --}}
-                    <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5 transition-all shrink-0" title="Import Theme">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                    </button>
-                    {{-- Export Theme --}}
-                    <button class="w-8 h-8 rounded-lg flex items-center justify-center bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/5 transition-all shrink-0" title="Export Theme">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                    </button>
-                    {{-- Save Changes Button (Purple) --}}
-                    <button
-                        wire:click="saveTheme"
-                        wire:loading.attr="disabled"
-                        class="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg font-bold text-xs text-white transition-all duration-200 hover:brightness-110 active:scale-95 shadow-md shadow-purple-900/40"
-                        style="background: #7c3aed;"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
-                        </svg>
-                        <span wire:loading.remove wire:target="saveTheme">Save Changes</span>
-                        <span wire:loading wire:target="saveTheme">Saving...</span>
-                    </button>
-                </div>
             </div>
         </div>
     </div>
 
     {{-- ═══════════════════════════════════════════════════════════════ --}}
-    {{-- EXPANSIVE LIVE PREVIEW CANVAS (>75% Width) --}}
+    {{-- LIVE PREVIEW AREA (2/3 SCREEN WIDTH) --}}
     {{-- ═══════════════════════════════════════════════════════════════ --}}
-    <div class="flex-1 min-w-0 flex flex-col h-full" style="background: #06070a;">
+    <div class="w-2/3 flex-1 min-w-0 flex flex-col h-full" style="background: #06070a;">
         
-        {{-- Clean, Spacious Preview Topbar (48px) --}}
-        <div class="flex items-center justify-between px-6 h-[48px] min-h-[48px] shrink-0" style="background: #0a0b12; border-bottom: 1px solid rgba(255,255,255,0.06);">
-            {{-- Left: Page Selector --}}
+        {{-- Preview Top Bar (Spacious, clean, fixed 48px) --}}
+        <div class="flex items-center justify-between px-6 h-[48px] min-h-[48px] shrink-0 select-none" style="background: #0a0b12; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            
+            {{-- Left: Path / Page Selector --}}
             <div class="flex items-center gap-3">
                 <span class="text-xs font-mono text-gray-500">/</span>
                 <div class="flex items-center bg-black/40 rounded-lg p-0.5 border border-white/5 text-xs">
                     <button 
+                        type="button"
                         @click="changePreviewPage('/admin')" 
                         :class="previewPage === '/admin' ? 'bg-[#7c3aed] text-white shadow' : 'text-gray-400 hover:text-white'" 
-                        class="px-3 py-1 rounded-md transition-all font-medium"
+                        class="px-3 py-1 rounded-md transition-all font-medium cursor-pointer"
                     >
                         Admin
                     </button>
                     <button 
+                        type="button"
                         @click="changePreviewPage('/dashboard')" 
                         :class="previewPage === '/dashboard' ? 'bg-[#7c3aed] text-white shadow' : 'text-gray-400 hover:text-white'" 
-                        class="px-3 py-1 rounded-md transition-all font-medium"
+                        class="px-3 py-1 rounded-md transition-all font-medium cursor-pointer"
                     >
                         Dashboard
                     </button>
                     <button 
+                        type="button"
                         @click="changePreviewPage('/admin/login')" 
                         :class="previewPage === '/admin/login' ? 'bg-[#7c3aed] text-white shadow' : 'text-gray-400 hover:text-white'" 
-                        class="px-3 py-1 rounded-md transition-all font-medium"
+                        class="px-3 py-1 rounded-md transition-all font-medium cursor-pointer"
                     >
                         Login
                     </button>
                     <button 
+                        type="button"
                         @click="changePreviewPage('/404')" 
                         :class="previewPage === '/404' ? 'bg-[#7c3aed] text-white shadow' : 'text-gray-400 hover:text-white'" 
-                        class="px-3 py-1 rounded-md transition-all font-medium"
+                        class="px-3 py-1 rounded-md transition-all font-medium cursor-pointer"
                     >
                         404 Page
                     </button>
@@ -317,25 +375,28 @@
                 {{-- Device Viewport Switcher --}}
                 <div class="flex items-center gap-1 bg-black/40 rounded-lg p-0.5 border border-white/5">
                     <button
+                        type="button"
                         @click="device = 'desktop'"
                         :class="device === 'desktop' ? 'bg-white/10 text-white font-semibold shadow-xs' : 'text-gray-400 hover:text-white'"
-                        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all"
+                        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25A2.25 2.25 0 0 1 5.25 3h13.5A2.25 2.25 0 0 1 21 5.25Z" /></svg>
                         Desktop
                     </button>
                     <button
+                        type="button"
                         @click="device = 'tablet'"
                         :class="device === 'tablet' ? 'bg-white/10 text-white font-semibold shadow-xs' : 'text-gray-400 hover:text-white'"
-                        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all"
+                        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-15a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v15a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
                         Tablet
                     </button>
                     <button
+                        type="button"
                         @click="device = 'mobile'"
                         :class="device === 'mobile' ? 'bg-white/10 text-white font-semibold shadow-xs' : 'text-gray-400 hover:text-white'"
-                        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all"
+                        class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" /></svg>
                         Mobile
@@ -343,14 +404,14 @@
                 </div>
 
                 {{-- Refresh Button --}}
-                <button @click="refreshPreview()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 border border-white/5 transition-all">
+                <button type="button" @click="refreshPreview()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 border border-white/5 transition-all cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>
                     <span>Refresh</span>
                 </button>
             </div>
         </div>
 
-        {{-- Preview Viewport Canvas (Takes ALL remaining space) --}}
+        {{-- Preview Viewport Canvas --}}
         <div class="flex-1 min-h-0 p-5 overflow-hidden flex items-center justify-center relative">
             <div
                 :class="{
@@ -364,7 +425,7 @@
                     id="theme-preview-iframe"
                     :src="previewPage"
                     class="w-full h-full border-0 bg-transparent flex-1"
-                    onload="this.contentWindow.postMessage({ type: 'THEME_UPDATE', payload: $wire.themeData }, '*')"
+                    @load="sendThemeUpdate()"
                 ></iframe>
             </div>
         </div>
