@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{AREA_NAMESPACE}}\{{STUDLY_NAME}}\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class {{STUDLY_NAME}}Controller extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        return response()->json([
+            'module' => '{{STUDLY_NAME}}',
+            'message' => 'Welcome to {{STUDLY_NAME}} API endpoint',
+            'data' => [],
+        ]);
+    }
+}

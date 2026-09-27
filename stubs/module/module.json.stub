@@ -1,0 +1,29 @@
+{
+  "name": "{{STUDLY_NAME}}",
+  "slug": "{{SLUG}}",
+  "namespace": "Modules\\{{AREA_NAMESPACE}}\\{{STUDLY_NAME}}",
+  "version": "1.0.0",
+  "description": "{{STUDLY_NAME}} Module for ARX-ERP",
+  "area": "{{AREA}}",
+  "author": {
+    "name": "Developer",
+    "url": ""
+  },
+  "core_version": ">=1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "{{SLUG}}.view",
+    "{{SLUG}}.create",
+    "{{SLUG}}.edit",
+    "{{SLUG}}.delete"
+  ],
+  "menu": {
+    "label": "{{STUDLY_NAME}}",
+    "icon": "box",
+    "route": "/{{SLUG}}",
+    "position": 50,
+    "permission": "{{SLUG}}.view",
+    "children": []
+  },
+  "settings": {}
+}

@@ -1,0 +1,15 @@
+{
+    "$schema": "https://www.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "npm --prefix themes/dashboard/default run build && npm --prefix themes/admin/default run build",
+        "build:dashboard": "npm --prefix themes/dashboard/default run build",
+        "build:admin": "npm --prefix themes/admin/default run build",
+        "dev:dashboard": "npm --prefix themes/dashboard/default run dev",
+        "dev:admin": "npm --prefix themes/admin/default run dev"
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.0"
+    }
+}

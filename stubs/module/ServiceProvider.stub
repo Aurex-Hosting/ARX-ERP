@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\{{AREA_NAMESPACE}}\{{STUDLY_NAME}}\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+class {{STUDLY_NAME}}ServiceProvider extends ServiceProvider
+{
+    /**
+     * Register services.
+     */
+    public function register(): void
+    {
+        // Bind module services
+    }
+
+    /**
+     * Bootstrap services.
+     */
+    public function boot(): void
+    {
+        // Register hooks, listeners, and custom module logic
+    }
+}

@@ -1,0 +1,141 @@
+name: Build & Publish Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build Production Assets & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse Version from version.json
+        id: get_version
+        run: |
+          if [ ! -f "version.json" ]; then
+            echo "Error: version.json file not found!" >&2
+            exit 1
+          fi
+
+          RAW_VER=$(jq -r '.version' version.json)
+          if [ -z "$RAW_VER" ] || [ "$RAW_VER" = "null" ]; then
+            echo "Error: Invalid version in version.json" >&2
+            exit 1
+          fi
+
+          # Strip leading 'v' if present, then build standardized tag
+          CLEAN_VER="${RAW_VER#v}"
+          TAG_NAME="v${CLEAN_VER}"
+
+          echo "VERSION=${CLEAN_VER}" >> $GITHUB_ENV
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+
+          # Check existing latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          echo "LATEST_TAG=${LATEST_TAG}" >> $GITHUB_ENV
+
+          echo "Parsed version: ${CLEAN_VER}"
+          echo "Target tag: ${TAG_NAME}"
+          echo "Current latest git tag: ${LATEST_TAG}"
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, pdo_mysql, bcmath, zip, gd
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Composer Dependencies (Production)
+        run: |
+          composer install --prefer-dist --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      - name: Build Admin Theme
+        run: |
+          cd themes/admin/default
+          npm install
+          npm run build
+          cd ../../..
+
+      - name: Build Dashboard Theme
+        run: |
+          cd themes/dashboard/default
+          npm install
+          npm run build
+          cd ../../..
+
+      - name: Clean Temporary Build Dependencies
+        run: |
+          # Remove node_modules to keep release zip lightweight while preserving compiled dist assets
+          rm -rf node_modules
+          rm -rf themes/admin/default/node_modules
+          rm -rf themes/dashboard/default/node_modules
+
+      - name: Create Production Release Archive
+        run: |
+          ZIP_NAME="arx-erp-${{ env.TAG_NAME }}.zip"
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+
+          # Package application files into clean distribution archive
+          zip -r "${ZIP_NAME}" . \
+            -x "*.git*" \
+            -x ".github*" \
+            -x "tests/*" \
+            -x ".phpunit*" \
+            -x ".ai/*" \
+            -x "*/node_modules/*" \
+            -x "node_modules/*" \
+            -x ".env" \
+            -x ".env.backup" \
+            -x "database/*.sqlite" \
+            -x "database/*.sqlite-journal" \
+            -x "storage/logs/*.log" \
+            -x "storage/framework/cache/data/*" \
+            -x "storage/framework/sessions/*" \
+            -x "storage/framework/views/*" \
+            -x "storage/backups/*.zip"
+
+          echo "Production archive ${ZIP_NAME} successfully generated."
+          ls -lh "${ZIP_NAME}"
+
+      - name: Git Tag Management
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git rev-parse "${{ env.TAG_NAME }}" >/dev/null 2>&1; then
+            echo "Tag ${{ env.TAG_NAME }} exists. Updating tag reference to latest commit..."
+            git tag -f -a "${{ env.TAG_NAME }}" -m "Release ${{ env.TAG_NAME }}"
+            git push origin "${{ env.TAG_NAME }}" --force
+          else
+            echo "Creating new git tag ${{ env.TAG_NAME }}..."
+            git tag -a "${{ env.TAG_NAME }}" -m "Release ${{ env.TAG_NAME }}"
+            git push origin "${{ env.TAG_NAME }}"
+          fi
+
+      - name: Publish or Replace GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: "ARX-ERP Enterprise ${{ env.TAG_NAME }}"
+          body_path: release-note.md
+          files: ${{ env.ZIP_NAME }}
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

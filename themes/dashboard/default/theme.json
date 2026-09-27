@@ -1,0 +1,20 @@
+{
+  "name": "ARX Violet Default",
+  "slug": "default",
+  "area": "dashboard",
+  "version": "1.0.0",
+  "engine": "react",
+  "author": {
+    "name": "ItzSD",
+    "url": "https://github.com/itzsd0811"
+  },
+  "core_version": ">=1.0.0",
+  "entry": "dist/index.html",
+  "config": {
+    "primary_color": "#8B5CF6",
+    "primary_dark": "#7C3AED",
+    "accent_color": "#A78BFA",
+    "default_mode": "dark",
+    "sidebar_style": "expanded"
+  }
+}

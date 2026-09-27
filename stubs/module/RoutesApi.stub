@@ -1,0 +1,10 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Route;
+use Modules\{{AREA_NAMESPACE}}\{{STUDLY_NAME}}\Http\Controllers\{{STUDLY_NAME}}Controller;
+
+Route::prefix('{{SLUG}}')->group(function (): void {
+    Route::get('/', [{{STUDLY_NAME}}Controller::class, 'index'])->name('api.{{SLUG}}.index');
+});
