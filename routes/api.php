@@ -18,6 +18,7 @@ use App\Core\Http\Controllers\Api\V1\RolePermissionController;
 use App\Core\Http\Controllers\Api\V1\SettingController;
 use App\Core\Http\Controllers\Api\V1\SystemHealthController;
 use App\Core\Http\Controllers\Api\V1\ThemeController;
+use App\Core\Http\Controllers\Api\V1\UpdateController;
 use App\Core\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -202,6 +203,12 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/notifications/{id}', [AdminNotificationController::class, 'update'])->name('api.v1.admin.notifications.update');
             Route::post('/notifications/{id}/resend', [AdminNotificationController::class, 'resend'])->name('api.v1.admin.notifications.resend');
             Route::delete('/notifications/{id}', [AdminNotificationController::class, 'destroy'])->name('api.v1.admin.notifications.destroy');
+
+            // System Updates & Licensing
+            Route::get('/updates/status', [UpdateController::class, 'status'])->name('api.v1.admin.updates.status');
+            Route::post('/updates/check', [UpdateController::class, 'check'])->name('api.v1.admin.updates.check');
+            Route::post('/updates/apply', [UpdateController::class, 'apply'])->name('api.v1.admin.updates.apply');
+            Route::post('/updates/rollback', [UpdateController::class, 'rollback'])->name('api.v1.admin.updates.rollback');
         });
     });
 });

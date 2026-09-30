@@ -161,6 +161,9 @@ class NotificationService
             'enable_reactions' => $data['enable_reactions'] ?? true,
             'send_email' => (bool) ($data['send_email'] ?? false),
             'email_subject' => $data['email_subject'] ?? null,
+            'email_body_html' => $data['email_body_html'] ?? null,
+            'email_action_label' => $data['email_action_label'] ?? null,
+            'email_action_url' => $data['email_action_url'] ?? null,
             'target_type' => $data['target_type'] ?? 'all',
             'target_user_ids' => $data['target_user_ids'] ?? [],
             'target_role_ids' => $data['target_role_ids'] ?? [],
@@ -322,16 +325,17 @@ class NotificationService
         if ($broadcast->send_email && $this->mailService) {
             $recipients = User::whereIn('id', $userIds)->whereNotNull('email')->get();
             $firstButton = ! empty($broadcast->action_buttons) ? $broadcast->action_buttons[0] : null;
-            $btnUrl = $firstButton['url'] ?? null;
-            $btnLabel = $firstButton['label'] ?? null;
-            $emailTitle = $broadcast->email_subject ?: $broadcast->title;
+            $btnUrl = $broadcast->email_action_url ?: ($firstButton['url'] ?? null);
+            $btnLabel = $broadcast->email_action_label ?: ($firstButton['label'] ?? null);
 
             foreach ($recipients as $recipientUser) {
                 try {
-                    $this->mailService->sendBroadcastNoticeMail(
+                    $this->mailService->sendCustomBroadcastMail(
                         user: $recipientUser,
-                        title: $emailTitle,
+                        title: $broadcast->title,
                         content: $broadcast->body,
+                        customSubject: $broadcast->email_subject,
+                        customHtmlBody: $broadcast->email_body_html,
                         actionUrl: $btnUrl,
                         actionLabel: $btnLabel
                     );

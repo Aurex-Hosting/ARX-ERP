@@ -10,6 +10,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Seeder creating initial core roles, permissions, default Super-Admin, and settings.
@@ -52,8 +53,10 @@ class CoreSeeder extends Seeder
             'backups.download',
             'backups.restore',
             'backups.delete',
-            'settings.view',
-            'settings.manage',
+            'updates.check',
+            'updates.apply',
+            'updates.revoke',
+            'updates.license_info',
             'audit_logs.view',
             'audit_logs.delete',
             'audit_logs.clear',
@@ -80,39 +83,45 @@ class CoreSeeder extends Seeder
             'mcp.execute',
         ];
 
-        foreach ($corePermissions as $permissionName) {
-            $perm = Permission::firstOrCreate(['name' => $permissionName]);
-            $superAdmin->givePermissionTo($perm);
-            $aiAgent->givePermissionTo($perm);
+        // 2. Create Core Permissions in Bulk (optimized for remote DB connections)
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $existingPerms = Permission::whereIn('name', $corePermissions)->pluck('name')->toArray();
+        $missingPerms = array_values(array_diff($corePermissions, $existingPerms));
+
+        if (! empty($missingPerms)) {
+            $now = now();
+            $insertData = array_map(fn ($name) => [
+                'name' => $name,
+                'guard_name' => 'web',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $missingPerms);
+            Permission::insert($insertData);
         }
 
-        // 3. Create Default Super-Admin User
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@arx-erp.local'],
-            [
-                'name' => 'Super Administrator',
-                'password' => Hash::make('password123'),
-                'user_type' => 'user',
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]
-        );
-        $admin->syncRoles([$superAdmin]);
+        $allPerms = Permission::whereIn('name', $corePermissions)->get();
+        $superAdmin->syncPermissions($allPerms);
+        $aiAgent->syncPermissions($allPerms);
 
-        // 4. Create Default AI-Agent Identity
-        $agent = User::firstOrCreate(
-            ['email' => 'agent@arx-erp.local'],
-            [
-                'name' => 'System AI Agent',
-                'password' => Hash::make(bin2hex(random_bytes(16))),
-                'user_type' => 'ai_agent',
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]
-        );
-        $agent->syncRoles([$aiAgent]);
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // 5. Create Default Settings
+        // 3. Create Default Super-Admin User ONLY during automated tests
+        if (app()->environment('testing')) {
+            $admin = User::firstOrCreate(
+                ['email' => 'admin@arx-erp.local'],
+                [
+                    'name' => 'Super Administrator',
+                    'password' => Hash::make('password123'),
+                    'user_type' => 'user',
+                    'is_active' => true,
+                    'email_verified_at' => now(),
+                ]
+            );
+            $admin->syncRoles([$superAdmin]);
+        }
+
+        // 4. Create Default Settings
         Setting::firstOrCreate(
             ['key' => 'system.app_name'],
             [

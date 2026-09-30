@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Core\Models\AuditLog;
+use App\Core\Services\BackupManager;
+use App\Core\Services\SettingsManager;
 use App\Models\User;
 use Database\Seeders\CoreSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -221,5 +224,48 @@ class BackupTest extends TestCase
         $permittedCreateRes = $this->actingAs($this->regularUser, 'sanctum')
             ->postJson('/api/v1/admin/backups', ['type' => 'db']);
         $permittedCreateRes->assertStatus(201);
+    }
+
+    public function test_auto_backup_scheduled_execution_and_timezone_handling(): void
+    {
+        $backupManager = app(BackupManager::class);
+        $settings = app(SettingsManager::class);
+
+        $tz = config('app.timezone', 'UTC');
+
+        // Configure auto backup to run daily at 10:00 AM in configured timezone
+        $response = $this->actingAs($this->superAdmin, 'sanctum')
+            ->putJson('/api/v1/admin/backups/config', [
+                'auto_backup_enabled' => true,
+                'schedule' => 'daily',
+                'time' => '10:00',
+                'timezone' => $tz,
+                'backup_type' => 'db',
+                'retention_count' => 5,
+            ]);
+
+        $response->assertStatus(200);
+
+        // Verify config was saved
+        $this->assertTrue((bool) $settings->get('system.backup.auto_enabled'));
+        $this->assertSame($tz, $settings->get('system.backup.timezone'));
+        $this->assertSame('10:00', $settings->get('system.backup.auto_time'));
+
+        // Case 1: When time in configured timezone is past 10:00 AM (e.g. 10:15 AM)
+        Carbon::setTestNow(Carbon::parse('2026-09-29 10:15:00', $tz));
+
+        // Clear last run timestamp
+        $settings->set('system.backup.last_auto_backup_at', '', 'system', 'string');
+
+        $result = $backupManager->processScheduledAutoBackup();
+        $this->assertNotNull($result, 'Expected auto backup to be created when due');
+        $this->assertArrayHasKey('filename', $result);
+
+        // Case 2: Running again on the same day should not duplicate
+        $duplicateResult = $backupManager->processScheduledAutoBackup();
+        $this->assertNull($duplicateResult, 'Should not create duplicate auto backup on the same day');
+
+        // Cleanup test time
+        Carbon::setTestNow();
     }
 }

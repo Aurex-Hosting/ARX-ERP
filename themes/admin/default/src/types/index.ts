@@ -249,6 +249,11 @@ export interface BroadcastNotificationItem {
   target_role_ids?: (number | string)[] | null;
   excluded_user_ids?: number[] | null;
   excluded_role_ids?: (number | string)[] | null;
+  send_email?: boolean;
+  email_subject?: string | null;
+  email_body_html?: string | null;
+  email_action_label?: string | null;
+  email_action_url?: string | null;
   scheduled_at?: string | null;
   repeat_interval?: 'none' | 'daily' | 'weekly' | 'monthly' | null;
   status: 'draft' | 'scheduled' | 'sent' | 'cancelled';

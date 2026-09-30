@@ -21,6 +21,10 @@ import {
   ShieldAlert,
   BarChart3,
   Mail,
+  Copy,
+  Check,
+  Code,
+  RefreshCw,
 } from 'lucide-react';
 import api from '../../services/api';
 import { BroadcastNotificationItem, NotificationActionButton } from '../../types';
@@ -68,6 +72,14 @@ export const NotifyPage: React.FC = () => {
   const [enableReactions, setEnableReactions] = useState<boolean>(true);
   const [sendEmail, setSendEmail] = useState<boolean>(false);
   const [emailSubject, setEmailSubject] = useState<string>('');
+  const [emailBodyHtml, setEmailBodyHtml] = useState<string>('');
+  const [emailActionLabel, setEmailActionLabel] = useState<string>('');
+  const [emailActionUrl, setEmailActionUrl] = useState<string>('');
+  const [emailViewMode, setEmailViewMode] = useState<'edit' | 'preview'>('edit');
+  const [previewTab, setPreviewTab] = useState<'in_app' | 'email'>('in_app');
+  const [globalCustomPlaceholders, setGlobalCustomPlaceholders] = useState<Array<{ key: string; description?: string; value?: string }>>([]);
+  const [copiedPlaceholder, setCopiedPlaceholder] = useState<string | null>(null);
+
   const [targetType, setTargetType] = useState<'all' | 'users' | 'roles' | 'all_except_users' | 'all_except_roles'>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [selectedRoleIds, setSelectedRoleIds] = useState<(number | string)[]>([]);
@@ -98,6 +110,47 @@ export const NotifyPage: React.FC = () => {
 
   const [metadataLoading, setMetadataLoading] = useState<boolean>(false);
   const [isEmailBroadcastEnabled, setIsEmailBroadcastEnabled] = useState<boolean>(false);
+
+  const standardBroadcastPlaceholders = [
+    { key: 'app_name', description: 'Application Name' },
+    { key: 'app_url', description: 'System Web URL' },
+    { key: 'user_name', description: 'Recipient Full Name' },
+    { key: 'user_email', description: 'Recipient Email Address' },
+    { key: 'title', description: 'Broadcast Title' },
+    { key: 'body', description: 'Notification Body' },
+    { key: 'action_label', description: 'Action CTA Label' },
+    { key: 'action_url', description: 'Action CTA Destination URL' },
+    { key: 'year', description: 'Current Year' },
+  ];
+
+  const handleCopyPlaceholder = (key: string) => {
+    navigator.clipboard.writeText(`{{${key}}}`);
+    setCopiedPlaceholder(key);
+    setTimeout(() => setCopiedPlaceholder(null), 2000);
+  };
+
+  const handleSyncEmailFromNotification = (force = false) => {
+    if (force || !emailSubject.trim()) {
+      setEmailSubject(title.trim() || 'New Announcement');
+    }
+    if (force || !emailBodyHtml.trim()) {
+      const formattedHtml = body.trim()
+        ? body
+            .split('\n\n')
+            .map((p) => `<p style="margin: 0 0 16px 0; line-height: 1.6;">${p.replace(/\n/g, '<br/>')}</p>`)
+            .join('\n')
+        : '<p style="margin: 0 0 16px 0; line-height: 1.6;">Hello <strong>{{user_name}}</strong>,</p>\n<p style="margin: 0 0 16px 0; line-height: 1.6;">{{body}}</p>';
+      setEmailBodyHtml(formattedHtml);
+    }
+    if (actionButtons.length > 0) {
+      if (force || !emailActionLabel) {
+        setEmailActionLabel(actionButtons[0].label || '');
+      }
+      if (force || !emailActionUrl) {
+        setEmailActionUrl(actionButtons[0].url || '');
+      }
+    }
+  };
 
   // Fetch broadcast history
   const fetchBroadcastHistory = async () => {
@@ -143,6 +196,9 @@ export const NotifyPage: React.FC = () => {
       const mailRes = await api.get('/admin/mail/hooks');
       const enabled = Boolean(mailRes.data?.is_mail_enabled && mailRes.data?.hooks?.hook_notify_broadcast);
       setIsEmailBroadcastEnabled(enabled);
+      if (mailRes.data?.hooks?.custom_placeholders && Array.isArray(mailRes.data.hooks.custom_placeholders)) {
+        setGlobalCustomPlaceholders(mailRes.data.hooks.custom_placeholders);
+      }
     } catch {
       setIsEmailBroadcastEnabled(false);
     } finally {
@@ -226,6 +282,11 @@ export const NotifyPage: React.FC = () => {
     setEnableReactions(true);
     setSendEmail(false);
     setEmailSubject('');
+    setEmailBodyHtml('');
+    setEmailActionLabel('');
+    setEmailActionUrl('');
+    setEmailViewMode('edit');
+    setPreviewTab('in_app');
     setTargetType('all');
     setSelectedUserIds([]);
     setSelectedRoleIds([]);
@@ -259,6 +320,9 @@ export const NotifyPage: React.FC = () => {
         enable_reactions: enableReactions,
         send_email: sendEmail,
         email_subject: emailSubject.trim() || null,
+        email_body_html: emailBodyHtml.trim() || null,
+        email_action_label: emailActionLabel.trim() || null,
+        email_action_url: emailActionUrl.trim() || null,
         target_type: targetType,
         target_user_ids: targetType === 'users' ? selectedUserIds : [],
         target_role_ids: targetType === 'roles' ? selectedRoleIds : [],
@@ -286,6 +350,11 @@ export const NotifyPage: React.FC = () => {
     setBody(item.body);
     setType(item.type);
     setEnableReactions(item.enable_reactions);
+    setSendEmail(Boolean(item.send_email));
+    setEmailSubject(item.email_subject || '');
+    setEmailBodyHtml(item.email_body_html || '');
+    setEmailActionLabel(item.email_action_label || '');
+    setEmailActionUrl(item.email_action_url || '');
     setTargetType(item.target_type);
     setSelectedUserIds(item.target_user_ids || []);
     setSelectedRoleIds(item.target_role_ids || []);
@@ -768,15 +837,21 @@ export const NotifyPage: React.FC = () => {
                     Allow recipients to react with: 🔥 👍 😊 😂 🤝 😢 😡
                   </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={enableReactions}
-                    onChange={(e) => setEnableReactions(e.target.checked)}
-                    className="sr-only peer"
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enableReactions}
+                  onClick={() => setEnableReactions(!enableReactions)}
+                  className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                    enableReactions ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      enableReactions ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-violet-600" />
-                </label>
+                </button>
               </div>
             </div>
 
@@ -852,9 +927,9 @@ export const NotifyPage: React.FC = () => {
               )}
             </div>
 
-            {/* Step 4: Dual-Channel Email Delivery (Optional) */}
+            {/* Step 4: Dual-Channel Email Delivery (Customizable) */}
             {isEmailBroadcastEnabled && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-7 shadow-sm border border-slate-100 dark:border-slate-800/60 space-y-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-7 shadow-sm border border-slate-100 dark:border-slate-800/60 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
@@ -862,31 +937,231 @@ export const NotifyPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-slate-900 dark:text-white">Also Send via Email Announcement</h3>
-                      <p className="text-[11px] text-slate-400">Deliver this announcement directly to recipients' email inboxes</p>
+                      <p className="text-[11px] text-slate-400">Deliver a beautifully formatted email directly to recipients' inboxes</p>
                     </div>
                   </div>
 
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={sendEmail}
-                      onChange={(e) => setSendEmail(e.target.checked)}
-                      className="sr-only peer"
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={sendEmail}
+                    onClick={() => {
+                      const next = !sendEmail;
+                      setSendEmail(next);
+                      if (next && (!emailSubject.trim() || !emailBodyHtml.trim())) {
+                        handleSyncEmailFromNotification(false);
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                      sendEmail ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        sendEmail ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                     />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600" />
-                  </label>
+                  </button>
                 </div>
 
                 {sendEmail && (
-                  <div className="pt-2 space-y-1 animate-in fade-in">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Custom Email Subject (Optional)</label>
-                    <input
-                      type="text"
-                      value={emailSubject}
-                      onChange={(e) => setEmailSubject(e.target.value)}
-                      placeholder={title || 'Leave blank to use broadcast title as subject'}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none"
-                    />
+                  <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800/60 animate-in fade-in duration-200">
+                    {/* Top Action Bar & Sync Button */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <span className="text-xs text-indigo-900 dark:text-indigo-200 font-medium">
+                          Customize your outbound email template or auto-sync with notification details.
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => handleSyncEmailFromNotification(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Sync from Notification</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Available Placeholders Chips Drawer */}
+                    <div className="space-y-2 p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                          Supported Placeholders (Click to Copy)
+                        </label>
+                        {copiedPlaceholder && (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 animate-in fade-in">
+                            <Check className="w-3 h-3" /> Copied {`{{${copiedPlaceholder}}}`}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Standard System Placeholders */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {standardBroadcastPlaceholders.map((p) => (
+                          <button
+                            key={p.key}
+                            type="button"
+                            onClick={() => handleCopyPlaceholder(p.key)}
+                            title={p.description}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-lg text-[11px] font-mono font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
+                          >
+                            <span>{`{{${p.key}}}`}</span>
+                            <Copy className="w-2.5 h-2.5 opacity-60" />
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Global Custom Placeholders (if configured in Mail Setup) */}
+                      {globalCustomPlaceholders.length > 0 && (
+                        <div className="pt-2 mt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Global Custom Placeholders
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {globalCustomPlaceholders.map((p) => (
+                              <button
+                                key={p.key}
+                                type="button"
+                                onClick={() => handleCopyPlaceholder(p.key)}
+                                title={p.description || p.value}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-800 border border-emerald-200/80 dark:border-emerald-800/80 hover:border-emerald-500 rounded-lg text-[11px] font-mono font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                              >
+                                <span>{`{{${p.key}}}`}</span>
+                                <Copy className="w-2.5 h-2.5 opacity-60" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Email Subject */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Email Subject Line *
+                      </label>
+                      <input
+                        type="text"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        placeholder={title || 'e.g. {{app_name}} Announcement: {{title}}'}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Email CTA Action Button (Optional) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Email Action Button Label (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={emailActionLabel}
+                          onChange={(e) => setEmailActionLabel(e.target.value)}
+                          placeholder="e.g. View Announcement or Open Dashboard"
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Email Action Button URL (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={emailActionUrl}
+                          onChange={(e) => setEmailActionUrl(e.target.value)}
+                          placeholder="e.g. https://yourdomain.com/dashboard or {{app_url}}"
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* View Switcher: Editor vs In-Line Simulation */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Email Body (HTML & Placeholders Supported)
+                        </label>
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() => setEmailViewMode('edit')}
+                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+                              emailViewMode === 'edit'
+                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1">
+                              <Code className="w-3 h-3" />
+                              <span>HTML Editor</span>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEmailViewMode('preview')}
+                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+                              emailViewMode === 'preview'
+                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1">
+                              <Eye className="w-3 h-3" />
+                              <span>Email Preview</span>
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {emailViewMode === 'edit' ? (
+                        <textarea
+                          rows={6}
+                          value={emailBodyHtml}
+                          onChange={(e) => setEmailBodyHtml(e.target.value)}
+                          placeholder="<p>Hello <strong>{{user_name}}</strong>,</p>&#10;<p>{{body}}</p>"
+                          className="w-full px-3.5 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-mono border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:outline-none leading-relaxed"
+                        />
+                      ) : (
+                        <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                          <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5 text-xs text-slate-500 space-y-1">
+                            <div><strong className="text-slate-700 dark:text-slate-300">Subject:</strong> {emailSubject || title || 'Announcement'}</div>
+                            <div><strong className="text-slate-700 dark:text-slate-300">To:</strong> {'{{user_name}}'} &lt;{'{{user_email}}'}&gt;</div>
+                          </div>
+                          <div
+                            className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed space-y-2"
+                            dangerouslySetInnerHTML={{
+                              __html: emailBodyHtml
+                                ? emailBodyHtml
+                                    .replace(/\{\{user_name\}\}/g, 'Alex Morgan')
+                                    .replace(/\{\{user_email\}\}/g, 'alex@example.com')
+                                    .replace(/\{\{title\}\}/g, title || 'System Update')
+                                    .replace(/\{\{body\}\}/g, body || 'Detailed notice content...')
+                                    .replace(/\{\{app_name\}\}/g, 'ARX-ERP System')
+                                    .replace(/\{\{app_url\}\}/g, 'https://example.com')
+                                    .replace(/\{\{year\}\}/g, new Date().getFullYear().toString())
+                                : '<p>Hello <strong>Alex Morgan</strong>,</p><p>' + (body || 'Announcement content...') + '</p>',
+                            }}
+                          />
+                          {(emailActionLabel || emailActionUrl) && (
+                            <div className="pt-3">
+                              <a
+                                href="#"
+                                onClick={(e) => e.preventDefault()}
+                                className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold shadow-xs"
+                              >
+                                {emailActionLabel || 'View Details'}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -929,88 +1204,160 @@ export const NotifyPage: React.FC = () => {
                   <Eye className="w-4 h-4 text-violet-500" />
                   <span>Real-Time Live Preview</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-medium">
-                  Recipient View
-                </span>
+                {sendEmail && (
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('in_app')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-all cursor-pointer ${
+                        previewTab === 'in_app'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      In-App
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('email')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-all cursor-pointer ${
+                        previewTab === 'email'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500'
+                      }`}
+                    >
+                      Email
+                    </button>
+                  </div>
+                )}
+                {!sendEmail && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-medium">
+                    In-App Notification
+                  </span>
+                )}
               </div>
 
-              {/* Rendered Mockup Box */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/60 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`p-2.5 rounded-xl shrink-0 ${
-                      type === 'warning'
-                        ? 'bg-amber-500/10 text-amber-500'
-                        : type === 'danger'
-                        ? 'bg-rose-500/10 text-rose-500'
-                        : type === 'success'
-                        ? 'bg-emerald-500/10 text-emerald-500'
-                        : type === 'security'
-                        ? 'bg-indigo-500/10 text-indigo-500'
-                        : 'bg-violet-500/10 text-violet-500'
-                    }`}
-                  >
-                    {type === 'warning' || type === 'danger' ? (
-                      <AlertTriangle className="w-4 h-4" />
-                    ) : type === 'security' ? (
-                      <ShieldAlert className="w-4 h-4" />
-                    ) : type === 'success' ? (
-                      <Flame className="w-4 h-4" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] uppercase font-bold text-violet-600 dark:text-violet-400">
-                        {type}
-                      </span>
-                      <span className="text-[10px] text-slate-400">Just now</span>
+              {/* In-App Rendered Mockup Box */}
+              {previewTab === 'in_app' && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/60 space-y-3 animate-in fade-in">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`p-2.5 rounded-xl shrink-0 ${
+                        type === 'warning'
+                          ? 'bg-amber-500/10 text-amber-500'
+                          : type === 'danger'
+                          ? 'bg-rose-500/10 text-rose-500'
+                          : type === 'success'
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : type === 'security'
+                          ? 'bg-indigo-500/10 text-indigo-500'
+                          : 'bg-violet-500/10 text-violet-500'
+                      }`}
+                    >
+                      {type === 'warning' || type === 'danger' ? (
+                        <AlertTriangle className="w-4 h-4" />
+                      ) : type === 'security' ? (
+                        <ShieldAlert className="w-4 h-4" />
+                      ) : type === 'success' ? (
+                        <Flame className="w-4 h-4" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
                     </div>
 
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                      {title || 'Your Notification Title'}
-                    </h4>
-
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
-                      {body || 'This is how your notification body will appear to users in their inbox and drop-down notification bell panel.'}
-                    </p>
-
-                    {/* Buttons in Preview */}
-                    {actionButtons.filter((b) => b.label.trim()).length > 0 && (
-                      <div className="flex items-center gap-2 pt-2 flex-wrap">
-                        {actionButtons
-                          .filter((b) => b.label.trim())
-                          .map((btn, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-600 text-white text-[10px] font-semibold"
-                            >
-                              <span>{btn.label}</span>
-                              <ExternalLink className="w-2.5 h-2.5" />
-                            </button>
-                          ))}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] uppercase font-bold text-violet-600 dark:text-violet-400">
+                          {type}
+                        </span>
+                        <span className="text-[10px] text-slate-400">Just now</span>
                       </div>
-                    )}
 
-                    {/* Reactions Bar in Preview */}
-                    {enableReactions && (
-                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 mt-2 flex items-center gap-1 flex-wrap">
-                        {Object.entries(EMOJI_REACTIONS).map(([key, val]) => (
-                          <span
-                            key={key}
-                            className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
-                          >
-                            {val.emoji}
-                          </span>
-                        ))}
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                        {title || 'Your Notification Title'}
+                      </h4>
+
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                        {body || 'This is how your notification body will appear to users in their inbox and drop-down notification bell panel.'}
+                      </p>
+
+                      {/* Buttons in Preview */}
+                      {actionButtons.filter((b) => b.label.trim()).length > 0 && (
+                        <div className="flex items-center gap-2 pt-2 flex-wrap">
+                          {actionButtons
+                            .filter((b) => b.label.trim())
+                            .map((btn, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-600 text-white text-[10px] font-semibold"
+                              >
+                                <span>{btn.label}</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </button>
+                            ))}
+                        </div>
+                      )}
+
+                      {/* Reactions Bar in Preview */}
+                      {enableReactions && (
+                        <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 mt-2 flex items-center gap-1 flex-wrap">
+                          {Object.entries(EMOJI_REACTIONS).map(([key, val]) => (
+                            <span
+                              key={key}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+                            >
+                              {val.emoji}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Email Rendered Mockup Box */}
+              {previewTab === 'email' && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800/60 space-y-3 text-xs animate-in fade-in">
+                  <div className="pb-2 border-b border-slate-200/80 dark:border-slate-800/80 space-y-1">
+                    <div className="text-[11px] font-semibold text-slate-800 dark:text-slate-200">
+                      <span className="text-slate-400 font-normal">Subject: </span>
+                      {emailSubject || title || 'Announcement Notice'}
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                      <span className="text-slate-400 font-normal">From: </span>
+                      ARX-ERP Notification System &lt;noreply@system.local&gt;
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 space-y-3">
+                    <div
+                      className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed"
+                      dangerouslySetInnerHTML={{
+                        __html: emailBodyHtml
+                          ? emailBodyHtml
+                              .replace(/\{\{user_name\}\}/g, 'Alex Morgan')
+                              .replace(/\{\{user_email\}\}/g, 'alex@example.com')
+                              .replace(/\{\{title\}\}/g, title || 'System Update')
+                              .replace(/\{\{body\}\}/g, body || 'Detailed notice content...')
+                              .replace(/\{\{app_name\}\}/g, 'ARX-ERP System')
+                              .replace(/\{\{app_url\}\}/g, 'https://example.com')
+                              .replace(/\{\{year\}\}/g, new Date().getFullYear().toString())
+                          : '<p>Hello <strong>Alex Morgan</strong>,</p><p>' + (body || 'Detailed notice content...') + '</p>',
+                      }}
+                    />
+
+                    {(emailActionLabel || (actionButtons[0] && actionButtons[0].label)) && (
+                      <div className="pt-2">
+                        <span className="inline-block px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold shadow-xs">
+                          {emailActionLabel || actionButtons[0]?.label || 'View Announcement'}
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -1414,16 +1761,22 @@ export const NotifyPage: React.FC = () => {
                     Purges this notification from all recipients' notification centers immediately.
                   </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    id="delete-inbox-toggle"
-                    type="checkbox"
-                    checked={deleteFromInbox}
-                    onChange={(e) => setDeleteFromInbox(e.target.checked)}
-                    className="sr-only peer"
+                <button
+                  id="delete-inbox-toggle"
+                  type="button"
+                  role="switch"
+                  aria-checked={deleteFromInbox}
+                  onClick={() => setDeleteFromInbox(!deleteFromInbox)}
+                  className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                    deleteFromInbox ? 'bg-rose-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      deleteFromInbox ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-rose-600" />
-                </label>
+                </button>
               </div>
             </div>
 

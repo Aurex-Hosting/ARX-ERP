@@ -22,6 +22,7 @@ export interface GeneralSettings {
   auth_bg_light: string | null;
   site_title_dashboard: string;
   site_title_admin: string;
+  timezone?: string;
   quick_links_topbar: QuickLinkItem[];
   quick_links_login: QuickLinkItem[];
 }
@@ -45,6 +46,7 @@ const defaultSettings: GeneralSettings = {
   auth_bg_light: null,
   site_title_dashboard: 'ARX-ERP - Dashboard',
   site_title_admin: 'ARX-ERP - Admin Portal',
+  timezone: undefined,
   quick_links_topbar: [],
   quick_links_login: [],
 };

@@ -35,7 +35,7 @@ interface AdminHeaderProps {
   onSelectTab?: (tab: string) => void;
 }
 
-const DigitalClock: React.FC = () => {
+const DigitalClock: React.FC<{ timezone?: string }> = ({ timezone }) => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -43,17 +43,31 @@ const DigitalClock: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const timeStr = time.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-  const dateStr = time.toLocaleDateString([], {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  let timeStr = '';
+  let dateStr = '';
+
+  try {
+    const options: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      ...(timezone ? { timeZone: timezone } : {}),
+    };
+    timeStr = time.toLocaleTimeString('en-US', options);
+
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      ...(timezone ? { timeZone: timezone } : {}),
+    };
+    dateStr = time.toLocaleDateString('en-US', dateOptions);
+  } catch {
+    timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    dateStr = time.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  }
 
   return (
     <div className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 text-xs shadow-sm select-none">
@@ -438,8 +452,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, onSel
           </div>
         )}
 
-        {/* Digital Clock with Date */}
-        <DigitalClock />
+        {/* Digital Clock with Date (App Timezone) */}
+        <DigitalClock timezone={settings?.timezone || (user as any)?.timezone} />
 
         {/* Return to Dashboard */}
         <a

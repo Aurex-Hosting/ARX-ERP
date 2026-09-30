@@ -726,6 +726,106 @@ class BackupManager
     }
 
     /**
+     * Check if a scheduled auto backup is due and execute it.
+     * Prevents duplicate runs within the same cycle and respects the configured timezone.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function processScheduledAutoBackup(): ?array
+    {
+        $autoEnabled = filter_var($this->settingsManager->get('system.backup.auto_enabled', false), FILTER_VALIDATE_BOOLEAN);
+        if (! $autoEnabled) {
+            return null;
+        }
+
+        $schedule = (string) $this->settingsManager->get('system.backup.schedule', 'daily');
+        $time = (string) $this->settingsManager->get('system.backup.auto_time', '00:00');
+        $type = (string) $this->settingsManager->get('system.backup.default_type', 'full');
+        $timezone = (string) config('app.timezone', 'UTC');
+
+        try {
+            $now = Carbon::now($timezone);
+        } catch (\Throwable) {
+            $now = Carbon::now();
+            $timezone = config('app.timezone', 'UTC');
+        }
+
+        $timeParts = explode(':', $time);
+        $targetHour = (int) ($timeParts[0] ?? 0);
+        $targetMinute = (int) ($timeParts[1] ?? 0);
+
+        $targetToday = $now->copy()->setTime($targetHour, $targetMinute, 0);
+
+        $lastRunIso = (string) $this->settingsManager->get('system.backup.last_auto_backup_at', '');
+        $lastRun = null;
+        if (! empty($lastRunIso)) {
+            try {
+                $lastRun = Carbon::parse($lastRunIso)->setTimezone($timezone);
+            } catch (\Throwable) {
+                $lastRun = null;
+            }
+        }
+
+        $isDue = false;
+
+        switch ($schedule) {
+            case 'hourly':
+                if ($now->minute >= $targetMinute) {
+                    $targetThisHour = $now->copy()->setMinute($targetMinute)->setSecond(0);
+                    if (! $lastRun || $lastRun->lt($targetThisHour)) {
+                        $isDue = true;
+                    }
+                }
+                break;
+
+            case 'daily':
+                if ($now->gte($targetToday)) {
+                    if (! $lastRun || $lastRun->lt($targetToday)) {
+                        $isDue = true;
+                    }
+                }
+                break;
+
+            case 'weekly':
+                if ($now->isSunday() && $now->gte($targetToday)) {
+                    if (! $lastRun || $lastRun->lt($targetToday)) {
+                        $isDue = true;
+                    }
+                }
+                break;
+
+            case 'monthly':
+                if ($now->day === 1 && $now->gte($targetToday)) {
+                    if (! $lastRun || $lastRun->lt($targetToday)) {
+                        $isDue = true;
+                    }
+                }
+                break;
+        }
+
+        if (! $isDue) {
+            return null;
+        }
+
+        // Record the last auto-backup timestamp immediately to prevent concurrent duplicate execution
+        $this->settingsManager->set('system.backup.last_auto_backup_at', $now->toIso8601String(), 'system', 'string');
+
+        try {
+            $backup = $this->createBackup(
+                $type,
+                "Automated scheduled backup ({$schedule} at {$time} {$timezone})"
+            );
+            $this->pruneOldBackups();
+
+            return $backup;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    /**
      * Format raw byte count into human-readable representation.
      */
     protected function formatBytes(int $bytes, int $precision = 2): string

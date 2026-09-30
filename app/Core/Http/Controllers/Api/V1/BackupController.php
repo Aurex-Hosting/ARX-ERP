@@ -55,6 +55,9 @@ class BackupController extends Controller
             ], 403);
         }
 
+        // Self-heal and trigger due auto backups on page load
+        $this->backupManager->processScheduledAutoBackup();
+
         $backups = $this->backupManager->listBackups();
         $totalBytes = array_sum(array_column($backups, 'size_bytes'));
 
@@ -283,10 +286,15 @@ class BackupController extends Controller
             ], 403);
         }
 
+        // Self-heal and trigger due auto backups
+        $this->backupManager->processScheduledAutoBackup();
+
         $config = [
             'auto_backup_enabled' => (bool) $this->settingsManager->get('system.backup.auto_enabled', false),
             'schedule' => $this->settingsManager->get('system.backup.schedule', 'daily'),
             'time' => (string) $this->settingsManager->get('system.backup.auto_time', '00:00'),
+            'timezone' => (string) config('app.timezone', 'UTC'),
+            'last_auto_backup_at' => $this->settingsManager->get('system.backup.last_auto_backup_at'),
             'backup_type' => $this->settingsManager->get('system.backup.default_type', 'full'),
             'retention_count' => (int) $this->settingsManager->get('system.backup.retention_count', 10),
             'storage_driver' => 'local_disk',
@@ -313,6 +321,7 @@ class BackupController extends Controller
             'auto_backup_enabled' => ['required', 'boolean'],
             'schedule' => ['required', 'string', 'in:hourly,daily,weekly,monthly'],
             'time' => ['nullable', 'string', 'regex:/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/'],
+            'timezone' => ['nullable', 'string', 'max:100'],
             'backup_type' => ['required', 'string', 'in:full,db,files'],
             'retention_count' => ['required', 'integer', 'min:1', 'max:100'],
         ]);
@@ -320,8 +329,14 @@ class BackupController extends Controller
         $this->settingsManager->set('system.backup.auto_enabled', $validated['auto_backup_enabled'] ? '1' : '0', 'system', 'boolean');
         $this->settingsManager->set('system.backup.schedule', $validated['schedule'], 'system', 'string');
         $this->settingsManager->set('system.backup.auto_time', $validated['time'] ?? '00:00', 'system', 'string');
+        if (! empty($validated['timezone'])) {
+            $this->settingsManager->set('system.backup.timezone', $validated['timezone'], 'system', 'string');
+        }
         $this->settingsManager->set('system.backup.default_type', $validated['backup_type'], 'system', 'string');
         $this->settingsManager->set('system.backup.retention_count', (string) $validated['retention_count'], 'system', 'integer');
+
+        // Immediately check if the newly configured schedule is due
+        $this->backupManager->processScheduledAutoBackup();
 
         AuditLog::record(
             action: 'backup.config_update',

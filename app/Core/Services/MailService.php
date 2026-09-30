@@ -412,10 +412,17 @@ HTML;
     }
 
     /**
-     * Hook: Send Broadcast Notification Announcement via Email.
+     * Hook: Send Broadcast Notification Announcement via Custom Email.
      */
-    public function sendBroadcastNoticeMail(User $user, string $title, string $content, ?string $actionUrl = null, ?string $actionLabel = null): bool
-    {
+    public function sendCustomBroadcastMail(
+        User $user,
+        string $title,
+        string $content,
+        ?string $customSubject = null,
+        ?string $customHtmlBody = null,
+        ?string $actionUrl = null,
+        ?string $actionLabel = null
+    ): bool {
         $config = MailConfiguration::instance();
         $hooks = MailHookConfiguration::instance();
 
@@ -423,18 +430,84 @@ HTML;
             return false;
         }
 
+        $appName = Setting::where('key', 'theme.company_name')->value('value')
+            ?? Setting::where('key', 'system.app_name')->value('value')
+            ?? config('app.name', 'ARX-ERP');
+
         $baseUrl = rtrim(config('app.url', 'http://localhost:8000'), '/');
         $resolvedUrl = $actionUrl ?: $baseUrl;
-        $resolvedLabel = $actionLabel ?: 'View Notification';
+        $resolvedLabel = $actionLabel ?: 'View Details';
 
-        $rendered = $this->renderTemplate('broadcast_notice', [
+        $nameParts = explode(' ', $user->name, 2);
+        $firstName = $nameParts[0] ?? $user->name;
+        $lastName = $nameParts[1] ?? '';
+
+        // Base dictionary
+        $placeholders = [
+            '{app_name}' => $appName,
+            '{current_year}' => (string) date('Y'),
             '{full_name}' => $user->name,
+            '{first_name}' => $firstName,
+            '{last_name}' => $lastName,
+            '{email}' => $user->email,
             '{broadcast_title}' => $title,
             '{broadcast_content}' => $content,
             '{action_url}' => $resolvedUrl,
             '{action_button_label}' => $resolvedLabel,
-        ]);
+            '{support_email}' => 'support@arx-erp.local',
+        ];
 
-        return $this->sendRaw($user->email, $rendered['subject'], $rendered['html'], $rendered['plain']);
+        // Global Custom Placeholders from hook configuration
+        if (! empty($hooks->custom_placeholders) && is_array($hooks->custom_placeholders)) {
+            foreach ($hooks->custom_placeholders as $item) {
+                if (! empty($item['key'])) {
+                    $key = '{'.trim($item['key'], '{}').'}';
+                    $placeholders[$key] = (string) ($item['value'] ?? '');
+                }
+            }
+        }
+
+        // Subject
+        $rawSubject = ! empty($customSubject) ? $customSubject : $title;
+        $subject = strtr($rawSubject, $placeholders);
+
+        // Body
+        if (! empty($customHtmlBody)) {
+            $html = strtr($customHtmlBody, $placeholders);
+        } else {
+            // Default elegant HTML layout
+            $escapedContent = nl2br(e($content));
+            $buttonHtml = '';
+            if (! empty($actionUrl)) {
+                $buttonHtml = <<<HTML
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{$resolvedUrl}" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; display: inline-block;">{$resolvedLabel}</a>
+                </div>
+HTML;
+            }
+
+            $currentYear = date('Y');
+            $html = <<<HTML
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: #6366f1; margin: 0; font-size: 24px; font-weight: 700;">{$appName}</h1>
+        <p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">System Notification</p>
+    </div>
+    <div style="background-color: #1e293b; padding: 24px; border-radius: 8px; margin-bottom: 24px;">
+        <h2 style="color: #f8fafc; font-size: 18px; margin-top: 0; font-weight: 700;">{$title}</h2>
+        <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">Hello <strong>{$user->name}</strong>,</p>
+        <div style="color: #cbd5e1; font-size: 14px; line-height: 1.6; margin: 16px 0;">{$escapedContent}</div>
+        {$buttonHtml}
+    </div>
+    <div style="text-align: center; color: #64748b; font-size: 12px;">
+        &copy; {$currentYear} {$appName}. All rights reserved.
+    </div>
+</div>
+HTML;
+        }
+
+        $plain = strip_tags($html);
+
+        return $this->sendRaw($user->email, $subject, $html, $plain);
     }
 }

@@ -16,6 +16,7 @@ import {
   Trash2,
   Globe,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -137,7 +138,9 @@ export const MailSetupPage: React.FC = () => {
 
       setConfig(configRes.data.config);
       setHooks(hooksRes.data.hooks);
-      const tmpls = templatesRes.data.templates || [];
+      const tmpls = (templatesRes.data.templates || []).filter(
+        (t: MailTemplate) => t.key !== 'broadcast_notice'
+      );
       setTemplates(tmpls);
 
       if (tmpls.length > 0) {
@@ -383,10 +386,10 @@ export const MailSetupPage: React.FC = () => {
       {/* Toast Notification */}
       {notification && (
         <div
-          className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium border animate-in slide-in-from-bottom-5 duration-200 ${
+          className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-medium animate-in slide-in-from-bottom-5 duration-200 ${
             notification.type === 'success'
-              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-800'
-              : 'bg-rose-950/90 text-rose-200 border-rose-800'
+              ? 'bg-emerald-950/95 text-emerald-200'
+              : 'bg-rose-950/95 text-rose-200'
           }`}
         >
           {notification.type === 'success' ? (
@@ -398,7 +401,7 @@ export const MailSetupPage: React.FC = () => {
         </div>
       )}
 
-      {/* Page Header & Breadcrumb */}
+      {/* Page Header & Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
@@ -411,7 +414,7 @@ export const MailSetupPage: React.FC = () => {
         </div>
 
         {/* Top Master Enable / Disable Toggle Bar */}
-        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2.5 px-4 rounded-2xl shadow-sm">
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
             Mail Service Status:
           </span>
@@ -420,12 +423,12 @@ export const MailSetupPage: React.FC = () => {
             role="switch"
             aria-checked={config.is_enabled}
             onClick={() => handleToggleMasterEnable(!config.is_enabled)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
               config.is_enabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
             }`}
           >
             <span
-              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                 config.is_enabled ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
@@ -433,8 +436,8 @@ export const MailSetupPage: React.FC = () => {
           <span
             className={`text-xs font-bold px-2 py-0.5 rounded-full ${
               config.is_enabled
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                ? 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400'
+                : 'bg-slate-500/15 text-slate-500 dark:text-slate-400'
             }`}
           >
             {config.is_enabled ? 'ENABLED' : 'DISABLED'}
@@ -444,7 +447,7 @@ export const MailSetupPage: React.FC = () => {
 
       {/* Global Inactive Alert Banner */}
       {!config.is_enabled && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start gap-3.5">
+        <div className="p-4 bg-amber-500/10 rounded-2xl flex items-start gap-3.5 shadow-xs">
           <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">
             <h3 className="font-semibold text-amber-600 dark:text-amber-400">
@@ -457,14 +460,14 @@ export const MailSetupPage: React.FC = () => {
         </div>
       )}
 
-      {/* Navigation Tabs (Only interactive if enabled or configured) */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2">
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl w-fit shadow-xs">
         <button
           onClick={() => setActiveTab('server')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
             activeTab === 'server'
-              ? 'border-violet-600 text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20 rounded-t-xl'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Server className="w-4 h-4" />
@@ -473,10 +476,10 @@ export const MailSetupPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('hooks')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
             activeTab === 'hooks'
-              ? 'border-violet-600 text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20 rounded-t-xl'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Zap className="w-4 h-4" />
@@ -485,10 +488,10 @@ export const MailSetupPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('templates')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
             activeTab === 'templates'
-              ? 'border-violet-600 text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20 rounded-t-xl'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <FileCode className="w-4 h-4" />
@@ -500,8 +503,8 @@ export const MailSetupPage: React.FC = () => {
       {activeTab === 'server' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main SMTP Form */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-1">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Server className="w-4 h-4 text-violet-500" />
                 <span>SMTP Server Parameters</span>
@@ -521,7 +524,7 @@ export const MailSetupPage: React.FC = () => {
                     value={config.host}
                     onChange={(e) => setConfig({ ...config, host: e.target.value })}
                     placeholder="e.g. smtp.mailtrap.io or smtp.gmail.com"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                   />
                 </div>
 
@@ -535,7 +538,7 @@ export const MailSetupPage: React.FC = () => {
                     value={config.port}
                     onChange={(e) => setConfig({ ...config, port: parseInt(e.target.value) || 587 })}
                     placeholder="587"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                   />
                 </div>
               </div>
@@ -550,7 +553,7 @@ export const MailSetupPage: React.FC = () => {
                     value={config.username}
                     onChange={(e) => setConfig({ ...config, username: e.target.value })}
                     placeholder="SMTP Username"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                   />
                 </div>
 
@@ -561,7 +564,7 @@ export const MailSetupPage: React.FC = () => {
                   <select
                     value={config.encryption}
                     onChange={(e: any) => setConfig({ ...config, encryption: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                   >
                     <option value="tls">TLS (STARTTLS)</option>
                     <option value="ssl">SSL / SMTPS</option>
@@ -580,7 +583,7 @@ export const MailSetupPage: React.FC = () => {
                     value={config.password || ''}
                     onChange={(e) => setConfig({ ...config, password: e.target.value })}
                     placeholder={config.has_password ? '•••••••• (Stored Encrypted)' : 'Enter SMTP password'}
-                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500 font-mono"
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40 font-mono"
                   />
                   <button
                     type="button"
@@ -596,7 +599,7 @@ export const MailSetupPage: React.FC = () => {
               </div>
 
               {/* SSL Verification / Self-Signed Certificate Toggle */}
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-xl flex items-center justify-between gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-between gap-4 shadow-xs">
                 <div className="space-y-0.5">
                   <label htmlFor="verify-peer-toggle" className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer block">
                     Strict SSL / TLS Certificate Verification
@@ -605,19 +608,25 @@ export const MailSetupPage: React.FC = () => {
                     Keep disabled to allow self-signed, local development, or untrusted STARTTLS certificates.
                   </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    id="verify-peer-toggle"
-                    type="checkbox"
-                    checked={!!config.verify_peer}
-                    onChange={(e) => setConfig({ ...config, verify_peer: e.target.checked })}
-                    className="sr-only peer"
+                <button
+                  id="verify-peer-toggle"
+                  type="button"
+                  role="switch"
+                  aria-checked={!!config.verify_peer}
+                  onClick={() => setConfig({ ...config, verify_peer: !config.verify_peer })}
+                  className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                    config.verify_peer ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      config.verify_peer ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-violet-600" />
-                </label>
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Default From Email Address
@@ -627,7 +636,7 @@ export const MailSetupPage: React.FC = () => {
                     value={config.from_address}
                     onChange={(e) => setConfig({ ...config, from_address: e.target.value })}
                     placeholder="noreply@yourdomain.com"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                   />
                 </div>
 
@@ -640,12 +649,12 @@ export const MailSetupPage: React.FC = () => {
                     value={config.from_name}
                     onChange={(e) => setConfig({ ...config, from_name: e.target.value })}
                     placeholder="ARX-ERP System"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4">
+              <div className="flex items-center justify-end gap-3 pt-3">
                 <button
                   type="submit"
                   disabled={isSaving}
@@ -660,7 +669,7 @@ export const MailSetupPage: React.FC = () => {
 
           {/* Diagnostics & Live Testing Panel */}
           <div className="space-y-6">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm space-y-5">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <ActivityIcon className="w-4 h-4 text-emerald-500" />
                 <span>Live Socket Handshake</span>
@@ -676,7 +685,7 @@ export const MailSetupPage: React.FC = () => {
                   id="auto_enable"
                   checked={autoEnableOnSuccess}
                   onChange={(e) => setAutoEnableOnSuccess(e.target.checked)}
-                  className="rounded border-slate-700 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                  className="rounded text-violet-600 focus:ring-violet-500 cursor-pointer"
                 />
                 <label htmlFor="auto_enable" className="text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
                   Automatically enable mail system upon successful connection
@@ -687,7 +696,7 @@ export const MailSetupPage: React.FC = () => {
                 type="button"
                 onClick={handleTestConnection}
                 disabled={isTestingConn || !config.host}
-                className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-700 disabled:opacity-50"
+                className="w-full py-2.5 px-4 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
               >
                 {isTestingConn ? (
                   <>
@@ -705,10 +714,10 @@ export const MailSetupPage: React.FC = () => {
               {/* Handshake Result Box */}
               {connTestResult && (
                 <div
-                  className={`p-3.5 rounded-xl border text-xs animate-in fade-in duration-200 ${
+                  className={`p-3.5 rounded-xl text-xs shadow-xs animate-in fade-in duration-200 ${
                     connTestResult.success
-                      ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
-                      : 'bg-rose-950/40 border-rose-800/50 text-rose-300'
+                      ? 'bg-emerald-950/40 text-emerald-300'
+                      : 'bg-rose-950/40 text-rose-300'
                   }`}
                 >
                   <div className="flex items-center gap-2 font-bold mb-1">
@@ -719,7 +728,7 @@ export const MailSetupPage: React.FC = () => {
                     )}
                     <span>{connTestResult.success ? 'Handshake Succeeded' : 'Handshake Failed'}</span>
                     {connTestResult.latency_ms > 0 && (
-                      <span className="ml-auto text-[10px] bg-slate-800/60 px-2 py-0.5 rounded-full font-mono">
+                      <span className="ml-auto text-[10px] bg-slate-800/80 px-2 py-0.5 rounded-full font-mono">
                         {connTestResult.latency_ms} ms
                       </span>
                     )}
@@ -730,7 +739,7 @@ export const MailSetupPage: React.FC = () => {
 
               {/* Stored Status info */}
               {config.last_tested_at && (
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <div className="pt-3 text-[11px] text-slate-400 space-y-1">
                   <div className="flex justify-between">
                     <span>Last Check:</span>
                     <span className="font-medium text-slate-300">
@@ -752,7 +761,7 @@ export const MailSetupPage: React.FC = () => {
             </div>
 
             {/* Test Email Dispatch Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm space-y-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Send className="w-4 h-4 text-indigo-500" />
                 <span>Send Test Email</span>
@@ -777,9 +786,9 @@ export const MailSetupPage: React.FC = () => {
       {/* TAB 2: FEATURE TRIGGER HOOKS & PLACEHOLDERS */}
       {activeTab === 'hooks' && (
         <div className="space-y-6">
-          {/* Card 1: Feature Trigger Toggles (3 in a row with switches) */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Card 1: Feature Trigger Toggles */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <Zap className="w-4 h-4 text-amber-500" />
@@ -790,6 +799,7 @@ export const MailSetupPage: React.FC = () => {
                 </p>
               </div>
 
+              {/* Single Save Button in Header */}
               <button
                 type="button"
                 onClick={() => handleSaveHooksOnly()}
@@ -804,7 +814,7 @@ export const MailSetupPage: React.FC = () => {
             {/* 3 Columns in a row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Hook 1: Password Reset via Email */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-xl flex flex-col justify-between gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex flex-col justify-between gap-4 shadow-xs">
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -815,12 +825,12 @@ export const MailSetupPage: React.FC = () => {
                       role="switch"
                       aria-checked={hooks.hook_user_pwd_change}
                       onClick={() => setHooks({ ...hooks, hook_user_pwd_change: !hooks.hook_user_pwd_change })}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
                         hooks.hook_user_pwd_change ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                           hooks.hook_user_pwd_change ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -830,7 +840,7 @@ export const MailSetupPage: React.FC = () => {
                     Enables "Send Reset Link" in User Management to dispatch 10-minute secure reset tokens. When disabled, action is hidden and standard manual password change is used.
                   </p>
                 </div>
-                <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/40 flex items-center justify-between text-[11px]">
+                <div className="pt-2 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">User Management</span>
                   <span className={`font-semibold ${hooks.hook_user_pwd_change ? 'text-violet-400' : 'text-slate-400'}`}>
                     {hooks.hook_user_pwd_change ? 'ACTIVE' : 'OFF'}
@@ -839,7 +849,7 @@ export const MailSetupPage: React.FC = () => {
               </div>
 
               {/* Hook 2: Forgot Password on Login */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-xl flex flex-col justify-between gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex flex-col justify-between gap-4 shadow-xs">
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -850,12 +860,12 @@ export const MailSetupPage: React.FC = () => {
                       role="switch"
                       aria-checked={hooks.hook_forgot_password}
                       onClick={() => setHooks({ ...hooks, hook_forgot_password: !hooks.hook_forgot_password })}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
                         hooks.hook_forgot_password ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                           hooks.hook_forgot_password ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -865,7 +875,7 @@ export const MailSetupPage: React.FC = () => {
                     Displays "Forgot Password?" link on login portal for user self-service 10-minute reset links. When disabled, the link is completely hidden.
                   </p>
                 </div>
-                <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/40 flex items-center justify-between text-[11px]">
+                <div className="pt-2 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">Authentication Portal</span>
                   <span className={`font-semibold ${hooks.hook_forgot_password ? 'text-violet-400' : 'text-slate-400'}`}>
                     {hooks.hook_forgot_password ? 'ACTIVE' : 'OFF'}
@@ -874,7 +884,7 @@ export const MailSetupPage: React.FC = () => {
               </div>
 
               {/* Hook 3: Send Verify Email when User Created */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-xl flex flex-col justify-between gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex flex-col justify-between gap-4 shadow-xs">
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -887,12 +897,12 @@ export const MailSetupPage: React.FC = () => {
                       onClick={() =>
                         setHooks({ ...hooks, hook_verify_email_on_created: !hooks.hook_verify_email_on_created })
                       }
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
                         hooks.hook_verify_email_on_created ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                           hooks.hook_verify_email_on_created ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -902,7 +912,7 @@ export const MailSetupPage: React.FC = () => {
                     Dispatches an account activation link (10-minute validity) upon new user registration and enables "Resend Activation" action in user list.
                   </p>
                 </div>
-                <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/40 flex items-center justify-between text-[11px]">
+                <div className="pt-2 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">Account Activation</span>
                   <span className={`font-semibold ${hooks.hook_verify_email_on_created ? 'text-violet-400' : 'text-slate-400'}`}>
                     {hooks.hook_verify_email_on_created ? 'ACTIVE' : 'OFF'}
@@ -911,7 +921,7 @@ export const MailSetupPage: React.FC = () => {
               </div>
 
               {/* Hook 4: Account Status Change Notifications */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-xl flex flex-col justify-between gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex flex-col justify-between gap-4 shadow-xs">
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -924,12 +934,12 @@ export const MailSetupPage: React.FC = () => {
                       onClick={() =>
                         setHooks({ ...hooks, hook_account_status_change: !hooks.hook_account_status_change })
                       }
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
                         hooks.hook_account_status_change ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                           hooks.hook_account_status_change ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -939,7 +949,7 @@ export const MailSetupPage: React.FC = () => {
                     Sends automated notification emails whenever an account is deactivated or restored by an administrator.
                   </p>
                 </div>
-                <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/40 flex items-center justify-between text-[11px]">
+                <div className="pt-2 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">Security Audit</span>
                   <span className={`font-semibold ${hooks.hook_account_status_change ? 'text-violet-400' : 'text-slate-400'}`}>
                     {hooks.hook_account_status_change ? 'ACTIVE' : 'OFF'}
@@ -948,7 +958,7 @@ export const MailSetupPage: React.FC = () => {
               </div>
 
               {/* Hook 5: Notify & Broadcast Delivery */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-xl flex flex-col justify-between gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex flex-col justify-between gap-4 shadow-xs">
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -961,22 +971,22 @@ export const MailSetupPage: React.FC = () => {
                       onClick={() =>
                         setHooks({ ...hooks, hook_notify_broadcast: !hooks.hook_notify_broadcast })
                       }
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
                         hooks.hook_notify_broadcast ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                           hooks.hook_notify_broadcast ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
                     </button>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                    Enables dual-channel broadcast dispatching so announcements can be sent as in-app notifications AND outbound emails simultaneously.
+                    Enables dual-channel broadcast dispatching so announcements can be customized and sent as in-app notifications AND outbound emails simultaneously.
                   </p>
                 </div>
-                <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/40 flex items-center justify-between text-[11px]">
+                <div className="pt-2 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400">Broadcast Manager</span>
                   <span className={`font-semibold ${hooks.hook_notify_broadcast ? 'text-violet-400' : 'text-slate-400'}`}>
                     {hooks.hook_notify_broadcast ? 'ACTIVE' : 'OFF'}
@@ -984,24 +994,11 @@ export const MailSetupPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Bottom Save Action Bar for Toggles */}
-            <div className="flex justify-end pt-3 border-t border-slate-200 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => handleSaveHooksOnly()}
-                disabled={isSavingHooks}
-                className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-sm flex items-center gap-2 shadow-md shadow-violet-600/20 cursor-pointer disabled:opacity-50"
-              >
-                {isSavingHooks ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                <span>Save Trigger Hooks</span>
-              </button>
-            </div>
           </div>
 
           {/* Card 2: Custom Placeholders Dictionary Manager */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <Globe className="w-4 h-4 text-cyan-500" />
@@ -1012,11 +1009,12 @@ export const MailSetupPage: React.FC = () => {
                 </p>
               </div>
 
+              {/* Single Save Button in Placeholders Header */}
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={handleAddPlaceholder}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Placeholder</span>
@@ -1025,7 +1023,7 @@ export const MailSetupPage: React.FC = () => {
                   type="button"
                   onClick={() => handleSavePlaceholdersOnly()}
                   disabled={isSavingPlaceholders}
-                  className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-600/20 disabled:opacity-50"
+                  className="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-600/20 disabled:opacity-50 transition-colors"
                 >
                   {isSavingPlaceholders ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   <span>Save Placeholders</span>
@@ -1034,9 +1032,9 @@ export const MailSetupPage: React.FC = () => {
             </div>
 
             {/* Placeholders Table */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            <div className="rounded-xl overflow-hidden shadow-xs bg-slate-50 dark:bg-slate-800/40">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
+                <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-semibold">
                   <tr>
                     <th className="p-3">Placeholder Key</th>
                     <th className="p-3">Substitution Value</th>
@@ -1044,15 +1042,15 @@ export const MailSetupPage: React.FC = () => {
                     <th className="p-3 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/60">
                   {hooks.custom_placeholders?.map((ph, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                    <tr key={idx} className="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="p-2.5 font-mono text-violet-400">
                         <input
                           type="text"
                           value={ph.key}
                           onChange={(e) => handleUpdatePlaceholder(idx, 'key', e.target.value)}
-                          className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs w-full text-violet-300"
+                          className="px-2.5 py-1.5 bg-white dark:bg-slate-800 rounded-lg text-xs w-full text-violet-600 dark:text-violet-300 outline-none focus:ring-2 focus:ring-violet-500/40"
                           placeholder="support_hotline"
                         />
                       </td>
@@ -1061,7 +1059,7 @@ export const MailSetupPage: React.FC = () => {
                           type="text"
                           value={ph.value}
                           onChange={(e) => handleUpdatePlaceholder(idx, 'value', e.target.value)}
-                          className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs w-full text-white"
+                          className="px-2.5 py-1.5 bg-white dark:bg-slate-800 rounded-lg text-xs w-full text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500/40"
                           placeholder="+1-800-555-0199"
                         />
                       </td>
@@ -1072,7 +1070,7 @@ export const MailSetupPage: React.FC = () => {
                           onChange={(e) =>
                             handleUpdatePlaceholder(idx, 'description', e.target.value)
                           }
-                          className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs w-full text-slate-300"
+                          className="px-2.5 py-1.5 bg-white dark:bg-slate-800 rounded-lg text-xs w-full text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-violet-500/40"
                           placeholder="Helpdesk phone number"
                         />
                       </td>
@@ -1080,7 +1078,8 @@ export const MailSetupPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleRemovePlaceholder(idx)}
-                          className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition-all cursor-pointer"
+                          className="p-1.5 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
+                          title="Delete Placeholder"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1090,25 +1089,13 @@ export const MailSetupPage: React.FC = () => {
 
                   {(!hooks.custom_placeholders || hooks.custom_placeholders.length === 0) && (
                     <tr>
-                      <td colSpan={4} className="p-6 text-center text-slate-500">
+                      <td colSpan={4} className="p-6 text-center text-slate-500 dark:text-slate-400">
                         No custom placeholders configured yet. Click "Add Placeholder" to create one.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
-            </div>
-
-            <div className="flex justify-end pt-3">
-              <button
-                type="button"
-                onClick={() => handleSavePlaceholdersOnly()}
-                disabled={isSavingPlaceholders}
-                className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl text-sm flex items-center gap-2 shadow-md shadow-cyan-600/20 cursor-pointer disabled:opacity-50"
-              >
-                {isSavingPlaceholders ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                <span>Save Custom Placeholders</span>
-              </button>
             </div>
           </div>
         </div>
@@ -1118,7 +1105,7 @@ export const MailSetupPage: React.FC = () => {
       {activeTab === 'templates' && (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Templates Sidebar */}
-          <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs space-y-2">
+          <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-2 py-1">
               Email Templates
             </h2>
@@ -1131,7 +1118,7 @@ export const MailSetupPage: React.FC = () => {
                     key={tmpl.key}
                     type="button"
                     onClick={() => handleSelectTemplate(tmpl.key)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex flex-col gap-0.5 ${
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex flex-col gap-0.5 ${
                       isSelected
                         ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1152,10 +1139,10 @@ export const MailSetupPage: React.FC = () => {
           </div>
 
           {/* Template Editor & Preview */}
-          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-5">
+          <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm space-y-5">
             {currentTemplate ? (
               <form onSubmit={handleSaveTemplate} className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                       <FileCode className="w-5 h-5 text-violet-500" />
@@ -1172,10 +1159,10 @@ export const MailSetupPage: React.FC = () => {
                       onClick={() => {
                         setViewMode('edit');
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
                         viewMode === 'edit'
-                          ? 'bg-violet-600 text-white'
-                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-violet-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       Edit Code
@@ -1186,10 +1173,10 @@ export const MailSetupPage: React.FC = () => {
                         setViewMode('preview');
                         loadTemplatePreview(currentTemplate.key);
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-all ${
                         viewMode === 'preview'
-                          ? 'bg-violet-600 text-white'
-                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-violet-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <Eye className="w-3.5 h-3.5" />
@@ -1198,19 +1185,21 @@ export const MailSetupPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Available Placeholders Chips */}
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-2">
+                {/* Available Placeholders Chips (Standard + Custom) */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-3 shadow-xs">
                   <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Available Placeholders (Click chip to copy)</span>
+                      <span>Template Placeholders (Click to copy token)</span>
                     </span>
                     {copiedTag && (
-                      <span className="text-emerald-400 font-normal text-[11px] animate-in fade-in">
+                      <span className="text-emerald-500 dark:text-emerald-400 font-normal text-[11px] animate-in fade-in">
                         Copied {copiedTag}
                       </span>
                     )}
                   </div>
+
+                  {/* Template specific standard tokens */}
                   <div className="flex flex-wrap gap-1.5">
                     {currentTemplate.placeholders_schema &&
                       Object.entries(currentTemplate.placeholders_schema).map(([tag, desc]) => (
@@ -1219,30 +1208,40 @@ export const MailSetupPage: React.FC = () => {
                           type="button"
                           onClick={() => copyToClipboard(tag)}
                           title={desc}
-                          className="px-2.5 py-1 bg-slate-200 dark:bg-slate-900 hover:bg-violet-600 hover:text-white text-slate-800 dark:text-slate-300 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1 cursor-pointer border border-slate-300 dark:border-slate-700"
+                          className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-violet-600 hover:text-white text-slate-800 dark:text-slate-300 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1 cursor-pointer shadow-xs"
                         >
                           <span>{tag}</span>
                           <Copy className="w-2.5 h-2.5 opacity-60" />
                         </button>
                       ))}
-
-                    {/* Global custom placeholders */}
-                    {hooks.custom_placeholders?.map((ph) => {
-                      const tag = `{${ph.key}}`;
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => copyToClipboard(tag)}
-                          title={ph.description}
-                          className="px-2.5 py-1 bg-cyan-950/40 hover:bg-cyan-600 hover:text-white text-cyan-300 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1 cursor-pointer border border-cyan-800/50"
-                        >
-                          <span>{tag}</span>
-                          <Copy className="w-2.5 h-2.5 opacity-60" />
-                        </button>
-                      );
-                    })}
                   </div>
+
+                  {/* Global Custom Placeholders list */}
+                  {hooks.custom_placeholders && hooks.custom_placeholders.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/50 space-y-1.5">
+                      <span className="text-[11px] font-semibold text-cyan-600 dark:text-cyan-400 flex items-center gap-1">
+                        <Layers className="w-3 h-3" />
+                        <span>Global Custom Tokens:</span>
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {hooks.custom_placeholders.map((ph) => {
+                          const tag = `{${ph.key}}`;
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => copyToClipboard(tag)}
+                              title={`${ph.description} (Value: ${ph.value})`}
+                              className="px-2.5 py-1 bg-cyan-950/40 hover:bg-cyan-600 hover:text-white text-cyan-300 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                            >
+                              <span>{tag}</span>
+                              <Copy className="w-2.5 h-2.5 opacity-60" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {viewMode === 'edit' ? (
@@ -1259,7 +1258,7 @@ export const MailSetupPage: React.FC = () => {
                           onChange={(e) =>
                             setCurrentTemplate({ ...currentTemplate, subject: e.target.value })
                           }
-                          className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                          className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                         />
                       </div>
 
@@ -1277,7 +1276,7 @@ export const MailSetupPage: React.FC = () => {
                             })
                           }
                           placeholder="e.g. Reset Password"
-                          className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:border-violet-500"
+                          className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-violet-500/40"
                         />
                       </div>
                     </div>
@@ -1293,7 +1292,7 @@ export const MailSetupPage: React.FC = () => {
                         onChange={(e) =>
                           setCurrentTemplate({ ...currentTemplate, body_html: e.target.value })
                         }
-                        className="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs font-mono leading-relaxed outline-none focus:border-violet-500"
+                        className="w-full p-3.5 bg-slate-950 rounded-xl text-slate-200 text-xs font-mono leading-relaxed outline-none focus:ring-2 focus:ring-violet-500/40 shadow-inner"
                       />
                     </div>
 
@@ -1308,15 +1307,15 @@ export const MailSetupPage: React.FC = () => {
                           setCurrentTemplate({ ...currentTemplate, body_plain: e.target.value })
                         }
                         placeholder="Fallback text for mail clients that don't support HTML"
-                        className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs font-mono leading-relaxed outline-none focus:border-violet-500"
+                        className="w-full p-3 bg-slate-950 rounded-xl text-slate-200 text-xs font-mono leading-relaxed outline-none focus:ring-2 focus:ring-violet-500/40 shadow-inner"
                       />
                     </div>
                   </>
                 ) : (
                   <div className="space-y-4">
                     {/* Simulated Mail Client Header */}
-                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2.5">
-                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="p-4 bg-slate-950 rounded-2xl space-y-2.5 shadow-sm">
+                      <div className="flex items-center justify-between pb-2">
                         <div className="flex items-center gap-2 text-xs">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                           <span className="font-semibold text-slate-200">Email Client Rendering Simulation</span>
@@ -1352,12 +1351,12 @@ export const MailSetupPage: React.FC = () => {
 
                     {/* Rendered HTML Box */}
                     {isPreviewLoading ? (
-                      <div className="h-96 flex flex-col items-center justify-center gap-3 bg-slate-950 border border-slate-800 rounded-2xl">
+                      <div className="h-96 flex flex-col items-center justify-center gap-3 bg-slate-950 rounded-2xl">
                         <RefreshCw className="w-8 h-8 text-violet-500 animate-spin" />
                         <span className="text-xs text-slate-400">Rendering email template with sample variables...</span>
                       </div>
                     ) : (
-                      <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl overflow-auto max-h-[600px] shadow-inner">
+                      <div className="p-6 bg-slate-950 rounded-2xl overflow-auto max-h-[600px] shadow-inner">
                         <div
                           className="max-w-xl mx-auto rounded-xl p-2"
                           dangerouslySetInnerHTML={{ __html: previewHtml }}
@@ -1390,28 +1389,28 @@ export const MailSetupPage: React.FC = () => {
       {/* Test Email Dispatch Modal */}
       {testEmailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Send className="w-4 h-4 text-indigo-400" />
                 <span>Dispatch SMTP Diagnostic Test</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setTestEmailModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-sm cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               An automated email with current server diagnostic information will be sent to the address specified below.
             </p>
 
             <form onSubmit={handleSendTestEmail} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Recipient Email Address
                 </label>
                 <input
@@ -1421,7 +1420,7 @@ export const MailSetupPage: React.FC = () => {
                   value={testRecipient}
                   onChange={(e) => setTestRecipient(e.target.value)}
                   placeholder="admin@example.com"
-                  className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
               </div>
 
@@ -1429,7 +1428,7 @@ export const MailSetupPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setTestEmailModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>

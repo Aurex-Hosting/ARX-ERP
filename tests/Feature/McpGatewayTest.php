@@ -9,6 +9,8 @@ use App\Core\Services\Mcp\McpRegistry;
 use App\Models\User;
 use Database\Seeders\CoreSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class MockReadOnlyTool implements McpToolInterface
@@ -85,6 +87,19 @@ class McpGatewayTest extends TestCase
     {
         parent::setUp();
         $this->seed(CoreSeeder::class);
+
+        $aiRole = Role::firstOrCreate(['name' => config('arx.roles.ai_agent', 'ai-agent')]);
+        $agent = User::firstOrCreate(
+            ['email' => 'agent@arx-erp.local'],
+            [
+                'name' => 'System AI Agent',
+                'password' => Hash::make('password123'),
+                'user_type' => 'ai_agent',
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]
+        );
+        $agent->syncRoles([$aiRole]);
 
         $registry = app(McpRegistry::class);
         $registry->registerTool(new MockReadOnlyTool);

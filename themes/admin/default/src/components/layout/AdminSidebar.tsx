@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   Send,
   Mail,
+  RefreshCw,
   X,
 } from 'lucide-react';
 
@@ -60,6 +61,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         return perms.some((p) => p.startsWith('themes.'));
       case 'backups':
         return perms.some((p) => p.startsWith('backups.'));
+      case 'updates':
+        return isSuperAdmin || perms.some((p) => p.startsWith('updates.'));
       case 'audit-logs':
         return perms.some((p) => p.startsWith('audit_logs.'));
       case 'login-history':
@@ -81,6 +84,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'modules', label: 'Modules Manager', icon: Box },
     { id: 'themes', label: 'Theme Manager', icon: Palette },
     { id: 'backups', label: 'Backup & Restore', icon: Archive },
+    { id: 'updates', label: 'System Updates', icon: RefreshCw },
     { id: 'audit-logs', label: 'Audit Trail', icon: FileText },
     { id: 'login-history', label: 'Login History', icon: History },
     { id: 'approvals', label: 'AI Approval Queue', icon: ShieldAlert },

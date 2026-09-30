@@ -57,7 +57,7 @@ class RolePermissionTest extends TestCase
         // 1. Create Role
         $createRes = $this->postJson('/api/v1/admin/roles', [
             'name' => 'Finance Clerk',
-            'permissions' => ['users.view', 'settings.view'],
+            'permissions' => ['users.view', 'updates.check'],
         ]);
 
         $createRes->assertCreated()
@@ -67,7 +67,7 @@ class RolePermissionTest extends TestCase
 
         // 2. Update Role Permissions
         $updateRes = $this->putJson("/api/v1/admin/roles/{$roleId}", [
-            'permissions' => ['users.view', 'settings.view', 'audit_logs.view'],
+            'permissions' => ['users.view', 'updates.check', 'audit_logs.view'],
         ]);
 
         $updateRes->assertOk();

@@ -1014,6 +1014,7 @@ class AuthController extends Controller
             'banner_url' => $bannerUrl,
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),
+            'timezone' => config('app.timezone', 'UTC'),
         ];
     }
 }

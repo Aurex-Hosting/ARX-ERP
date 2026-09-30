@@ -46,11 +46,55 @@ interface BackupConfig {
   auto_backup_enabled: boolean;
   schedule: string;
   time?: string;
+  timezone?: string;
+  last_auto_backup_at?: string | null;
   backup_type: 'full' | 'db' | 'files';
   retention_count: number;
   storage_driver: string;
   backup_dir: string;
 }
+
+interface CustomCheckboxProps {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (checked: boolean) => void;
+  title?: string;
+}
+
+const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
+  checked,
+  indeterminate = false,
+  onChange,
+  title,
+}) => {
+  return (
+    <label
+      title={title}
+      className="relative inline-flex items-center justify-center cursor-pointer select-none group w-5 h-5"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        ref={(el) => {
+          if (el) el.indeterminate = indeterminate;
+        }}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <div
+        className={`w-[18px] h-[18px] rounded-md flex items-center justify-center transition-all duration-150 ${
+          checked || indeterminate
+            ? 'bg-violet-600 text-white shadow-xs shadow-violet-600/30'
+            : 'bg-slate-100 dark:bg-slate-800 text-transparent border border-slate-300/80 dark:border-slate-700 group-hover:border-violet-500 group-hover:bg-slate-200 dark:group-hover:bg-slate-750'
+        }`}
+      >
+        {checked && <Check className="w-3 h-3 stroke-[3]" />}
+        {!checked && indeterminate && <div className="w-2 h-0.5 bg-white rounded-full" />}
+      </div>
+    </label>
+  );
+};
 
 export const BackupsPage: React.FC = () => {
   const { user } = useAuth();
@@ -93,6 +137,19 @@ export const BackupsPage: React.FC = () => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploadingRestore, setIsUploadingRestore] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Delete Confirmation Modal State
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    type: 'single' | 'batch';
+    backup?: BackupItem;
+    filenames: string[];
+  }>({
+    isOpen: false,
+    type: 'single',
+    filenames: [],
+  });
+  const [isDeletingBackup, setIsDeletingBackup] = useState(false);
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -228,35 +285,51 @@ export const BackupsPage: React.FC = () => {
     }
   };
 
-  // Delete Backup
-  const handleDeleteBackup = async (filename: string) => {
+  // Prompt Single Delete Modal
+  const promptDeleteBackup = (backup: BackupItem) => {
     if (!canDelete) return;
-    if (!confirm(`Are you sure you want to permanently delete backup '${filename}'?`)) return;
+    setDeleteModal({
+      isOpen: true,
+      type: 'single',
+      backup,
+      filenames: [backup.filename],
+    });
+  };
 
+  // Prompt Batch Delete Modal
+  const promptBatchDelete = () => {
+    if (!canDelete || selectedFilenames.length === 0) return;
+    setDeleteModal({
+      isOpen: true,
+      type: 'batch',
+      filenames: [...selectedFilenames],
+    });
+  };
+
+  // Confirm Delete Action (Handles both single and batch delete)
+  const handleConfirmDelete = async () => {
+    if (!canDelete || deleteModal.filenames.length === 0) return;
+
+    setIsDeletingBackup(true);
     try {
-      await api.delete(`/admin/backups/${encodeURIComponent(filename)}`);
-      showNotification('success', `Backup '${filename}' deleted.`);
-      setSelectedFilenames((prev) => prev.filter((f) => f !== filename));
+      if (deleteModal.type === 'single') {
+        const filename = deleteModal.filenames[0];
+        await api.delete(`/admin/backups/${encodeURIComponent(filename)}`);
+        showNotification('success', `Backup '${filename}' deleted successfully.`);
+        setSelectedFilenames((prev) => prev.filter((f) => f !== filename));
+      } else {
+        const res = await api.post('/admin/backups/batch-delete', {
+          filenames: deleteModal.filenames,
+        });
+        showNotification('success', res.data.message || 'Selected backups deleted successfully.');
+        setSelectedFilenames([]);
+      }
+      setDeleteModal({ isOpen: false, type: 'single', filenames: [] });
       await fetchBackups();
     } catch (err: any) {
       showNotification('error', err.response?.data?.message || 'Failed to delete backup');
-    }
-  };
-
-  // Batch Delete
-  const handleBatchDelete = async () => {
-    if (!canDelete || selectedFilenames.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedFilenames.length} selected backup archives?`)) return;
-
-    try {
-      const res = await api.post('/admin/backups/batch-delete', {
-        filenames: selectedFilenames,
-      });
-      showNotification('success', res.data.message || 'Selected backups deleted.');
-      setSelectedFilenames([]);
-      await fetchBackups();
-    } catch (err: any) {
-      showNotification('error', err.response?.data?.message || 'Batch delete failed');
+    } finally {
+      setIsDeletingBackup(false);
     }
   };
 
@@ -277,6 +350,8 @@ export const BackupsPage: React.FC = () => {
 
       showNotification('success', 'Backup configuration and retention settings updated.');
       setShowConfigModal(false);
+      await fetchBackups();
+      await fetchConfig();
     } catch (err: any) {
       showNotification('error', err.response?.data?.message || 'Failed to update settings');
     } finally {
@@ -308,7 +383,7 @@ export const BackupsPage: React.FC = () => {
 
   if (!canView) {
     return (
-      <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200/60 dark:border-slate-800 text-center space-y-4">
+      <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl bg-white dark:bg-slate-900 shadow-sm text-center space-y-4">
         <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
           <ShieldAlert className="w-7 h-7" />
         </div>
@@ -352,7 +427,7 @@ export const BackupsPage: React.FC = () => {
           <button
             onClick={() => fetchBackups()}
             title="Refresh Backups"
-            className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-xs cursor-pointer transition-colors shrink-0"
+            className="p-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shadow-xs cursor-pointer transition-colors shrink-0"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -360,7 +435,7 @@ export const BackupsPage: React.FC = () => {
           {canCreate && (
             <button
               onClick={() => setShowConfigModal(true)}
-              className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shrink-0"
+              className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shrink-0"
             >
               <Sliders className="w-3.5 h-3.5 text-violet-500" />
               <span>Retention & Auto Policy</span>
@@ -391,7 +466,7 @@ export const BackupsPage: React.FC = () => {
 
       {/* Read-Only Banner if lacks create/restore */}
       {!canCreate && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span>
             <strong>Read-Only Access:</strong> You have permission to view backup records, but lack privileges to generate new backups or restore system checkpoints.
@@ -402,10 +477,10 @@ export const BackupsPage: React.FC = () => {
       {/* Automated Backup Policy Banner */}
       {config && (
         <div
-          className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-all ${
+          className={`p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-all ${
             config.auto_backup_enabled
-              ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-950 dark:text-emerald-200 shadow-2xs'
-              : 'bg-slate-50 dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+              ? 'bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 shadow-2xs'
+              : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400'
           }`}
         >
           <div className="flex items-center gap-3">
@@ -425,6 +500,11 @@ export const BackupsPage: React.FC = () => {
                     Auto-Backups are <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Enabled</span> &amp; backing up{' '}
                     <span className="font-semibold">{config.schedule === 'hourly' ? 'every hour' : config.schedule === 'daily' ? 'every day' : config.schedule === 'weekly' ? 'every week (Sundays)' : 'every month'}</span>{' '}
                     @ <span className="font-mono font-bold bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded text-[11px]">{config.time || '00:00'}</span>
+                    {config.timezone && (
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 ml-1.5">
+                        ({config.timezone})
+                      </span>
+                    )}
                   </>
                 ) : (
                   <>
@@ -436,6 +516,9 @@ export const BackupsPage: React.FC = () => {
                 {config.auto_backup_enabled ? (
                   <>
                     Target: <span className="capitalize font-medium text-slate-800 dark:text-slate-200">{config.backup_type === 'db' ? 'Database Only' : config.backup_type === 'files' ? 'Storage Files Only' : 'Full System Snapshot'}</span> • Retention Policy: Keep last <span className="font-semibold text-slate-800 dark:text-slate-200">{config.retention_count}</span> archives automatically
+                    {config.last_auto_backup_at && (
+                      <> • Last executed: <span className="text-emerald-600 dark:text-emerald-400 font-medium">{new Date(config.last_auto_backup_at).toLocaleString()}</span></>
+                    )}
                   </>
                 ) : (
                   <>Configure automated background snapshots via the Retention Policy &amp; Auto-Schedule button.</>
@@ -447,7 +530,7 @@ export const BackupsPage: React.FC = () => {
           {canCreate && (
             <button
               onClick={() => setShowConfigModal(true)}
-              className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-all cursor-pointer shrink-0 shadow-xs"
+              className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition-all cursor-pointer shrink-0 shadow-xs"
             >
               {config.auto_backup_enabled ? 'Modify Schedule' : 'Enable Schedule'}
             </button>
@@ -458,7 +541,7 @@ export const BackupsPage: React.FC = () => {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Card 1: Total Backups */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex items-center gap-4">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">
             <Archive className="w-5 h-5" />
           </div>
@@ -469,7 +552,7 @@ export const BackupsPage: React.FC = () => {
         </div>
 
         {/* Card 2: Disk Usage */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex items-center gap-4">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
             <HardDrive className="w-5 h-5" />
           </div>
@@ -480,7 +563,7 @@ export const BackupsPage: React.FC = () => {
         </div>
 
         {/* Card 3: Last Backup */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm flex items-center gap-4">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5" />
           </div>
@@ -494,7 +577,7 @@ export const BackupsPage: React.FC = () => {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
         {/* Type Badges */}
         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/70 rounded-xl">
           {(['all', 'full', 'db', 'files'] as const).map((t) => (
@@ -516,7 +599,7 @@ export const BackupsPage: React.FC = () => {
         <div className="flex items-center gap-2">
           {selectedFilenames.length > 0 && canDelete && (
             <button
-              onClick={handleBatchDelete}
+              onClick={promptBatchDelete}
               className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -531,14 +614,14 @@ export const BackupsPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search backups by name or notes..."
-              className="w-full sm:w-64 pl-9 pr-4 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+              className="w-full sm:w-64 pl-9 pr-4 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
             />
           </div>
         </div>
       </div>
 
       {/* Backups Table */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-16 text-center text-slate-400 text-xs">Loading backup archives...</div>
         ) : filteredBackups.length === 0 ? (
@@ -562,19 +645,19 @@ export const BackupsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 uppercase font-semibold text-[10px] tracking-wider">
+                <tr className="bg-slate-50/50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 uppercase font-semibold text-[10px] tracking-wider">
                   <th className="p-4 w-8">
-                    <input
-                      type="checkbox"
+                    <CustomCheckbox
                       checked={selectedFilenames.length === filteredBackups.length && filteredBackups.length > 0}
-                      onChange={(e) => {
-                        if (e.target.checked) {
+                      indeterminate={selectedFilenames.length > 0 && selectedFilenames.length < filteredBackups.length}
+                      onChange={(checked) => {
+                        if (checked) {
                           setSelectedFilenames(filteredBackups.map((b) => b.filename));
                         } else {
                           setSelectedFilenames([]);
                         }
                       }}
-                      className="rounded border-slate-300 text-violet-600 focus:ring-violet-500/20"
+                      title="Select all backups"
                     />
                   </th>
                   <th className="p-4">Backup Archive</th>
@@ -584,7 +667,7 @@ export const BackupsPage: React.FC = () => {
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-slate-700 dark:text-slate-300">
                 {filteredBackups.map((backup) => {
                   const isSelected = selectedFilenames.includes(backup.filename);
                   return (
@@ -595,17 +678,16 @@ export const BackupsPage: React.FC = () => {
                       }`}
                     >
                       <td className="p-4">
-                        <input
-                          type="checkbox"
+                        <CustomCheckbox
                           checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                          onChange={(checked) => {
+                            if (checked) {
                               setSelectedFilenames((prev) => [...prev, backup.filename]);
                             } else {
                               setSelectedFilenames((prev) => prev.filter((f) => f !== backup.filename));
                             }
                           }}
-                          className="rounded border-slate-300 text-violet-600 focus:ring-violet-500/20"
+                          title={`Select ${backup.filename}`}
                         />
                       </td>
 
@@ -651,10 +733,10 @@ export const BackupsPage: React.FC = () => {
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
                             backup.type === 'full'
-                              ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/20'
+                              ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
                               : backup.type === 'db'
-                              ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/20'
-                              : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                              ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+                              : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                           }`}
                         >
                           {backup.type === 'full' ? 'Full Archive' : backup.type === 'db' ? 'Database SQL' : 'Storage Assets'}
@@ -711,7 +793,7 @@ export const BackupsPage: React.FC = () => {
 
                           {canDelete && (
                             <button
-                              onClick={() => handleDeleteBackup(backup.filename)}
+                              onClick={() => promptDeleteBackup(backup)}
                               title="Delete Archive"
                               className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 cursor-pointer transition-colors shadow-xs"
                             >
@@ -734,8 +816,8 @@ export const BackupsPage: React.FC = () => {
       {/* ========================================================================= */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden space-y-6 p-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden space-y-6 p-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
                   <Archive className="w-4 h-4" />
@@ -760,10 +842,10 @@ export const BackupsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCreatingType('full')}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                    className={`p-3 rounded-xl text-left cursor-pointer transition-all ${
                       creatingType === 'full'
-                        ? 'border-violet-600 bg-violet-50 dark:bg-violet-950/40 text-violet-900 dark:text-violet-200 ring-2 ring-violet-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300'
+                        ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-900 dark:text-violet-200 ring-2 ring-violet-500/40'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-750'
                     }`}
                   >
                     <FileArchive className="w-5 h-5 text-violet-500 mb-1.5" />
@@ -775,10 +857,10 @@ export const BackupsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCreatingType('db')}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                    className={`p-3 rounded-xl text-left cursor-pointer transition-all ${
                       creatingType === 'db'
-                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 ring-2 ring-blue-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300'
+                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 ring-2 ring-blue-500/40'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-750'
                     }`}
                   >
                     <Database className="w-5 h-5 text-blue-500 mb-1.5" />
@@ -790,10 +872,10 @@ export const BackupsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCreatingType('files')}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                    className={`p-3 rounded-xl text-left cursor-pointer transition-all ${
                       creatingType === 'files'
-                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/40'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-750'
                     }`}
                   >
                     <FolderArchive className="w-5 h-5 text-emerald-500 mb-1.5" />
@@ -816,7 +898,7 @@ export const BackupsPage: React.FC = () => {
                 />
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed flex items-start gap-2.5">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed flex items-start gap-2.5">
                 <Info className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" />
                 <span>
                   The archive will be generated atomically and sealed with a SHA256 checksum in <code className="font-mono text-[10px]">storage/app/backups</code>.
@@ -859,8 +941,8 @@ export const BackupsPage: React.FC = () => {
       {/* ========================================================================= */}
       {restoreTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden space-y-6 p-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden space-y-6 p-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                   <RotateCcw className="w-4 h-4" />
@@ -919,7 +1001,7 @@ export const BackupsPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs space-y-2">
+                <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs space-y-2">
                   <div className="flex items-center gap-2 font-bold">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
                     <span>Warning: Irreversible Overwrite</span>
@@ -930,7 +1012,7 @@ export const BackupsPage: React.FC = () => {
                 </div>
 
                 {/* Target details */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-slate-500">File:</span>
                     <span className="font-mono font-bold text-slate-900 dark:text-white">{restoreTarget.filename}</span>
@@ -946,7 +1028,7 @@ export const BackupsPage: React.FC = () => {
                 </div>
 
                 {isRestoring && (
-                  <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 text-center space-y-2">
+                  <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/30 text-center space-y-2">
                     <RefreshCw className="w-5 h-5 text-violet-600 animate-spin mx-auto" />
                     <p className="text-xs font-semibold text-violet-900 dark:text-violet-200">
                       {restoreProgressStep}
@@ -993,13 +1075,13 @@ export const BackupsPage: React.FC = () => {
       {/* ========================================================================= */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden space-y-6 p-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden space-y-6 p-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
                   <Upload className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Upload & Restore External Archive</h3>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Upload &amp; Restore External Archive</h3>
               </div>
               <button
                 onClick={() => setShowUploadModal(false)}
@@ -1013,7 +1095,7 @@ export const BackupsPage: React.FC = () => {
               {/* Drag & drop upload area */}
               <div
                 onClick={() => uploadInputRef.current?.click()}
-                className="p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 flex flex-col items-center justify-center text-center cursor-pointer transition-all space-y-2"
+                className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-700/80 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 flex flex-col items-center justify-center text-center cursor-pointer transition-all space-y-2"
               >
                 <input
                   ref={uploadInputRef}
@@ -1050,7 +1132,7 @@ export const BackupsPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] leading-relaxed flex items-start gap-2.5">
+              <div className="p-3.5 rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300 text-[11px] leading-relaxed flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <span>
                   Uploading and confirming will immediately unpack the archive and restore its database and storage files.
@@ -1093,13 +1175,13 @@ export const BackupsPage: React.FC = () => {
       {/* ========================================================================= */}
       {showConfigModal && config && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden space-y-6 p-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden space-y-6 p-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center">
                   <Sliders className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Retention Policy & Auto-Schedule</h3>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Retention Policy &amp; Auto-Schedule</h3>
               </div>
               <button
                 onClick={() => setShowConfigModal(false)}
@@ -1111,22 +1193,28 @@ export const BackupsPage: React.FC = () => {
 
             <form onSubmit={handleSaveConfig} className="space-y-4">
               {/* Enable Auto Backup */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60">
                 <div>
                   <span className="font-bold text-xs text-slate-900 dark:text-white block">Automated Cron Backups</span>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
                     Execute background snapshots via system scheduler
                   </span>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={config.auto_backup_enabled}
-                    onChange={(e) => setConfig({ ...config, auto_backup_enabled: e.target.checked })}
-                    className="sr-only peer"
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config.auto_backup_enabled}
+                  onClick={() => setConfig({ ...config, auto_backup_enabled: !config.auto_backup_enabled })}
+                  className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                    config.auto_backup_enabled ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      config.auto_backup_enabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
                   />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-violet-600"></div>
-                </label>
+                </button>
               </div>
 
               {/* Schedule Frequency & Execution Time */}
@@ -1158,7 +1246,9 @@ export const BackupsPage: React.FC = () => {
                     className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-violet-500/30 font-mono"
                   />
                   <span className="text-[10px] text-slate-400 block mt-1">
-                    {config.schedule === 'hourly' ? `Triggered at minute :${config.time?.split(':')[1] || '00'}` : 'Specific server time (24-hour format)'}
+                    {config.schedule === 'hourly'
+                      ? `Triggered at minute :${config.time?.split(':')[1] || '00'}`
+                      : `Configured in system timezone${config.timezone ? `: ${config.timezone}` : ''} (defined in .env)`}
                   </span>
                 </div>
               </div>
@@ -1226,6 +1316,141 @@ export const BackupsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: DELETE BACKUP CONFIRMATION POPUP                                 */}
+      {/* ========================================================================= */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 shadow-2xl overflow-hidden space-y-5 p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-xs">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                    {deleteModal.type === 'single' ? 'Delete Backup Archive' : 'Delete Selected Backups'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {deleteModal.type === 'single' ? 'Confirm permanent archive deletion' : `Bulk removal of ${deleteModal.filenames.length} archives`}
+                  </p>
+                </div>
+              </div>
+              {!isDeletingBackup && (
+                <button
+                  onClick={() => setDeleteModal({ isOpen: false, type: 'single', filenames: [] })}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Warning Banner */}
+            <div className="p-4 rounded-2xl bg-rose-500/10 text-rose-800 dark:text-rose-300 text-xs space-y-1.5">
+              <div className="flex items-center gap-2 font-bold">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>Irreversible Action</span>
+              </div>
+              <p className="leading-relaxed">
+                {deleteModal.type === 'single' ? (
+                  <>
+                    Are you sure you want to permanently delete backup{' '}
+                    <span className="font-mono font-bold break-all text-rose-900 dark:text-rose-200">
+                      '{deleteModal.backup?.filename || deleteModal.filenames[0]}'
+                    </span>
+                    ? Once deleted, this backup cannot be recovered.
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to permanently delete{' '}
+                    <strong className="font-bold">{deleteModal.filenames.length} selected backup archives</strong>?
+                    All selected snapshot files will be purged from storage.
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Target details (if single) */}
+            {deleteModal.type === 'single' && deleteModal.backup && (
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400">Archive Name:</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px] truncate max-w-[220px]" title={deleteModal.backup.filename}>
+                    {deleteModal.backup.filename}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400">Type:</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300 capitalize">
+                    {deleteModal.backup.type === 'full' ? 'Full System' : deleteModal.backup.type === 'db' ? 'Database Only' : 'Storage Files'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400">Size:</span>
+                  <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
+                    {deleteModal.backup.size_formatted}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400">Created:</span>
+                  <span className="text-slate-700 dark:text-slate-300">
+                    {deleteModal.backup.created_at_human}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Target files preview (if batch) */}
+            {deleteModal.type === 'batch' && (
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-xs">
+                <div className="text-slate-500 dark:text-slate-400 mb-1.5 font-medium">Selected files ({deleteModal.filenames.length}):</div>
+                <div className="max-h-32 overflow-y-auto space-y-1 font-mono text-[11px] text-slate-700 dark:text-slate-300">
+                  {deleteModal.filenames.map((name) => (
+                    <div key={name} className="truncate p-1 rounded bg-slate-100 dark:bg-slate-800/80">
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+              <button
+                type="button"
+                disabled={isDeletingBackup}
+                onClick={() => setDeleteModal({ isOpen: false, type: 'single', filenames: [] })}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold cursor-pointer transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingBackup}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-md shadow-rose-500/20 transition-all disabled:opacity-50"
+              >
+                {isDeletingBackup ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>
+                      {deleteModal.type === 'single' ? 'Permanently Delete' : `Delete (${deleteModal.filenames.length}) Archives`}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

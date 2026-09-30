@@ -100,6 +100,7 @@ class SettingController extends Controller
             'auth_bg_light' => $this->settingsManager->get('theme.auth_bg_light', null),
             'site_title_dashboard' => $this->settingsManager->get('theme.site_title_dashboard', $companyName.' - Dashboard'),
             'site_title_admin' => $this->settingsManager->get('theme.site_title_admin', $companyName.' - Admin Portal'),
+            'timezone' => config('app.timezone', 'UTC'),
             'quick_links_topbar' => is_array($rawTopbar) ? array_values(array_filter($rawTopbar, fn ($l) => is_array($l) && (! empty($l['name']) || ! empty($l['url'])))) : [],
             'quick_links_login' => is_array($rawLogin) ? array_values(array_filter($rawLogin, fn ($l) => is_array($l) && (! empty($l['name']) || ! empty($l['url'])))) : [],
         ];

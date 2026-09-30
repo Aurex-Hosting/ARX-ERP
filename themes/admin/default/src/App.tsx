@@ -16,6 +16,7 @@ import { SystemHealthPage } from './pages/admin/SystemHealthPage';
 import { ProfilePage } from './pages/admin/ProfilePage';
 import { NotifyPage } from './pages/admin/NotifyPage';
 import { MailSetupPage } from './pages/admin/MailSetupPage';
+import { UpdatesPage } from './pages/admin/UpdatesPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
@@ -26,7 +27,7 @@ const AdminAppContent: React.FC = () => {
     const hash = window.location.hash.replace('#', '');
     const validTabs = [
       'overview', 'notify', 'mail-setup', 'users', 'roles',
-      'api-keys', 'modules', 'themes', 'backups', 'audit-logs',
+      'api-keys', 'modules', 'themes', 'backups', 'updates', 'audit-logs',
       'login-history', 'approvals', 'health', 'profile'
     ];
     return validTabs.includes(hash) ? hash : 'overview';
@@ -72,6 +73,7 @@ const AdminAppContent: React.FC = () => {
       {currentTab === 'modules' && <ModulesPage />}
       {currentTab === 'themes' && <ThemesPage />}
       {currentTab === 'backups' && <BackupsPage />}
+      {currentTab === 'updates' && <UpdatesPage onNavigateTab={setCurrentTab} />}
       {currentTab === 'audit-logs' && <AuditLogsPage />}
       {currentTab === 'login-history' && <LoginHistoryPage />}
       {currentTab === 'approvals' && <ApprovalsPage />}

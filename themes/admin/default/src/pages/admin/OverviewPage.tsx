@@ -82,10 +82,9 @@ export const OverviewPage: React.FC = () => {
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">System Health</span>
             <Activity className="w-4 h-4 text-violet-600 dark:text-violet-400" />
           </div>
-          <p className="text-2xl font-bold text-violet-600 dark:text-violet-400 capitalize text-sm font-mono mt-1">
-            {health?.status || 'Healthy'}
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            ARX-ERP v{health?.version || '1.0.0'}
           </p>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">ARX-ERP v1.0.0</p>
         </div>
       </div>
     </div>

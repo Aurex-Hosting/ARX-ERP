@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core\Http\Controllers\Api\V1;
 
 use App\Core\Models\Module;
+use App\Core\Services\UpdateManager;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -44,9 +45,16 @@ class SystemHealthController extends Controller
 
         $isHealthy = $dbStatus === 'ok' && $cacheStatus === 'ok';
 
+        $version = config('arx.version', '1.0.0');
+        try {
+            $version = app(UpdateManager::class)->getCurrentVersion()['version'] ?? $version;
+        } catch (\Throwable) {
+            // fallback
+        }
+
         return response()->json([
             'status' => $isHealthy ? 'healthy' : 'degraded',
-            'version' => config('arx.version', '1.0.0'),
+            'version' => $version,
             'app_name' => config('arx.name', 'ARX-ERP'),
             'checks' => [
                 'database' => $dbStatus,
