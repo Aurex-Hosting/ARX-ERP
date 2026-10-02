@@ -5,6 +5,8 @@
   "version": "1.0.0",
   "description": "{{STUDLY_NAME}} Module for ARX-ERP",
   "area": "{{AREA}}",
+  "icon": "icon.png",
+  "banner": "banner.png",
   "author": {
     "name": "Developer",
     "url": ""

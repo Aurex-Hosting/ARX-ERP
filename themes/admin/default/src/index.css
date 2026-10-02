@@ -27,3 +27,187 @@
     background: rgba(139, 92, 246, 0.4);
   }
 }
+
+/* ========================================================
+   Ambient Floating Glow & Levitation Engine
+   Applies smoothly to admin & dashboard cards, stat widgets, 
+   and all custom modules automatically.
+   ======================================================== */
+
+/* 1. Universal Utility Classes */
+.floating-card,
+[data-float="true"],
+.hover-float {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.28s ease !important;
+  will-change: transform, box-shadow;
+}
+
+.floating-card:hover,
+[data-float="true"]:hover,
+.hover-float:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 28px -6px rgba(124, 58, 237, 0.09), 
+              0 6px 14px -4px rgba(0, 0, 0, 0.04), 
+              0 0 0 1px rgba(139, 92, 246, 0.12) !important;
+}
+
+.dark .floating-card:hover,
+.dark [data-float="true"]:hover,
+.dark .hover-float:hover {
+  box-shadow: 0 16px 32px -6px rgba(0, 0, 0, 0.55), 
+              0 0 24px -2px rgba(139, 92, 246, 0.18), 
+              0 0 0 1px rgba(139, 92, 246, 0.25) !important;
+}
+
+/* 2. Automatic Rule for Cards & Widgets (System-Wide + Custom Modules) */
+:is(
+  .grid > div[class*="shadow-sm"][class*="rounded-2"],
+  .grid > div[class*="shadow-sm"][class*="rounded-3"],
+  div[data-card="true"],
+  .arx-widget-card
+):not(.fixed):not(.sticky):not(.absolute):not([role="dialog"]):not([role="dialog"] *):not(button):not(input):not(.no-float):not([data-float="false"]) {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.28s ease;
+  will-change: transform, box-shadow;
+}
+
+:is(
+  .grid > div[class*="shadow-sm"][class*="rounded-2"],
+  .grid > div[class*="shadow-sm"][class*="rounded-3"],
+  div[data-card="true"],
+  .arx-widget-card
+):not(.fixed):not(.sticky):not(.absolute):not([role="dialog"]):not([role="dialog"] *):not(button):not(input):not(.no-float):not([data-float="false"]):hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(124, 58, 237, 0.09), 
+              0 6px 14px -4px rgba(0, 0, 0, 0.04), 
+              0 0 0 1px rgba(139, 92, 246, 0.12);
+}
+
+.dark :is(
+  .grid > div[class*="shadow-sm"][class*="rounded-2"],
+  .grid > div[class*="shadow-sm"][class*="rounded-3"],
+  div[data-card="true"],
+  .arx-widget-card
+):not(.fixed):not(.sticky):not(.absolute):not([role="dialog"]):not([role="dialog"] *):not(button):not(input):not(.no-float):not([data-float="false"]):hover {
+  box-shadow: 0 16px 32px -6px rgba(0, 0, 0, 0.55), 
+              0 0 24px -2px rgba(139, 92, 246, 0.18), 
+              0 0 0 1px rgba(139, 92, 246, 0.25);
+}
+
+/* ========================================================
+   Shimmer Skeleton Wave Animation Engine
+   ======================================================== */
+@keyframes shimmerWave {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-wave {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(226, 232, 240, 0.6);
+}
+
+.dark .skeleton-wave {
+  background-color: rgba(30, 41, 59, 0.6);
+}
+
+.skeleton-wave::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+  animation: shimmerWave 1.8s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  content: '';
+}
+
+.dark .skeleton-wave::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
+}
+
+/* ========================================================
+   Smooth Page & Element Floating Entrance Engine
+   Executes clean floating entrance whenever pages or tabs load/switch
+   ======================================================== */
+
+@keyframes pageFloatIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cardFloatIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-page-enter,
+.animate-float-in,
+.animate-fade-in-up {
+  animation: pageFloatIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Staggered Floating Entrance for Cards & Modules automatically on load/switch */
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(1),
+.stagger-float > *:nth-child(1) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.04s both;
+}
+
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(2),
+.stagger-float > *:nth-child(2) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(3),
+.stagger-float > *:nth-child(3) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+}
+
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(4),
+.stagger-float > *:nth-child(4) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+}
+
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(5),
+.stagger-float > *:nth-child(5) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.20s both;
+}
+
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(6),
+.stagger-float > *:nth-child(6) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
+}
+
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(7),
+.stagger-float > *:nth-child(7) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both;
+}
+
+.grid:not(.no-stagger) > div[class*="shadow-sm"]:nth-child(8),
+.stagger-float > *:nth-child(8) {
+  animation: cardFloatIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.32s both;
+}

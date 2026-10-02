@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core\Http\Controllers\Api\V1;
 
 use App\Core\Models\AuditLog;
+use App\Core\Models\Module;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -283,6 +284,29 @@ class RolePermissionController extends Controller
     {
         $permissions = Permission::orderBy('name')->get();
 
+        // Dynamically filter out permissions belonging to disabled modules
+        $disabledPermissions = Module::where('is_enabled', false)
+            ->get()
+            ->flatMap(fn ($m) => $m->manifest['permissions'] ?? [])
+            ->all();
+
+        if (! empty($disabledPermissions)) {
+            $permissions = $permissions->reject(fn ($p) => in_array($p->name, $disabledPermissions, true));
+        }
+
+        // Map module permission prefixes to module names dynamically
+        $enabledModules = Module::where('is_installed', true)->where('is_enabled', true)->get();
+        $moduleCategoryLabels = [];
+        foreach ($enabledModules as $mod) {
+            $modPerms = $mod->manifest['permissions'] ?? [];
+            foreach ($modPerms as $mp) {
+                $pPrefix = explode('.', $mp)[0] ?? '';
+                if ($pPrefix && ! isset($moduleCategoryLabels[$pPrefix])) {
+                    $moduleCategoryLabels[$pPrefix] = $mod->manifest['menu']['label'] ?? $mod->name;
+                }
+            }
+        }
+
         $grouped = [];
         foreach ($permissions as $perm) {
             $parts = explode('.', $perm->name);
@@ -308,7 +332,7 @@ class RolePermissionController extends Controller
                 'login_history' => 'Login History & Sessions',
                 'audit_logs' => 'Audit Trail',
                 'ai_agents' => 'AI Agents & MCP Tools',
-                default => Str::title(str_replace('_', ' ', $categoryKey)),
+                default => $moduleCategoryLabels[$categoryKey] ?? Str::title(str_replace('_', ' ', $categoryKey)),
             };
 
             // Human readable action label & route slug
@@ -342,6 +366,8 @@ class RolePermissionController extends Controller
                 'themes.general.manage' => 'Manage General Branding, Logos & Wallpapers',
                 'themes.quick_links.view' => 'View Top Bar & Login Quick Links',
                 'themes.quick_links.manage' => 'Manage Top Bar & Login Quick Links',
+                'themes.dashboard.view' => 'View Dashboard Overview Widgets Configuration',
+                'themes.dashboard.manage' => 'Manage Dashboard Overview Widgets & Layout',
                 'backups.view' => 'View Backups & Configurations',
                 'backups.create' => 'Create Database & Storage Backups',
                 'backups.download' => 'Download Backup Archives',
@@ -378,7 +404,7 @@ class RolePermissionController extends Controller
                 'api.view', 'api.create', 'api.edit', 'api.delete' => '/admin/api-keys',
                 'login_history.view', 'login_history.clear', 'login_history.revoke' => '/admin/login-history',
                 'modules.view', 'modules.manage' => '/admin/modules',
-                'themes.view', 'themes.manage', 'themes.general.view', 'themes.general.manage', 'themes.quick_links.view', 'themes.quick_links.manage' => '/admin/themes',
+                'themes.view', 'themes.manage', 'themes.general.view', 'themes.general.manage', 'themes.quick_links.view', 'themes.quick_links.manage', 'themes.dashboard.view', 'themes.dashboard.manage' => '/admin/themes',
                 'backups.view', 'backups.create', 'backups.download', 'backups.restore', 'backups.delete' => '/admin/backups',
                 'updates.check', 'updates.apply', 'updates.revoke', 'updates.license_info' => '/admin/updates',
                 'audit_logs.view', 'audit_logs.delete', 'audit_logs.clear', 'audit_logs.export' => '/admin/audit-logs',

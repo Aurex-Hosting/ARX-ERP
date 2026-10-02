@@ -197,7 +197,7 @@ export const RolesPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="w-full space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -251,8 +251,8 @@ export const RolesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Roles Grid - 3 Per Row, Borderless Cards, Without Icons, With Description Preview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Roles Grid - Responsive, Borderless Cards, Without Icons, With Description Preview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {roles.map((role) => (
           <div
             key={role.id}

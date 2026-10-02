@@ -576,8 +576,8 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'user_type' => $user->user_type,
                 'is_super_admin' => $user->isSuperAdmin(),
-                'avatar_url' => $user->avatar_url ? (Storage::disk('public')->exists($user->avatar_url) ? Storage::disk('public')->url($user->avatar_url) : route('api.v1.auth.profile.avatar', ['identifier' => $user->identifier])).'?t='.strtotime((string) $user->updated_at) : null,
-                'banner_url' => $user->banner_url ? (Storage::disk('public')->exists($user->banner_url) ? Storage::disk('public')->url($user->banner_url) : route('api.v1.auth.profile.banner', ['identifier' => $user->identifier])).'?t='.strtotime((string) $user->updated_at) : null,
+                'avatar_url' => $user->avatar_url ? route('api.v1.auth.profile.avatar', ['identifier' => $user->identifier, 't' => strtotime((string) $user->updated_at)]) : null,
+                'banner_url' => $user->banner_url ? route('api.v1.auth.profile.banner', ['identifier' => $user->identifier, 't' => strtotime((string) $user->updated_at)]) : null,
                 'has_avatar' => ! empty($user->avatar_url),
                 'has_banner' => ! empty($user->banner_url),
                 'phone_country_code_1' => $user->phone_country_code_1 ?: '+1',
@@ -592,7 +592,8 @@ class AuthController extends Controller
                 'address_line_2' => $user->address_line_2 ?: '',
                 'roles' => $user->getRoleNames(),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
-                'created_at' => $user->created_at,
+                'created_at' => $user->created_at?->toIso8601String(),
+                'active_sessions_count' => max(1, LoginHistory::where('user_id', $user->id)->activeSessions()->count()),
             ],
         ]);
     }
@@ -675,11 +676,11 @@ class AuthController extends Controller
         $user->avatar_url = $path;
         $user->save();
 
-        $publicUrl = Storage::disk('public')->url($path).'?t='.time();
+        $avatarUrl = route('api.v1.auth.profile.avatar', ['identifier' => $user->identifier, 't' => time()]);
 
         return response()->json([
             'message' => 'Profile picture updated successfully.',
-            'avatar_url' => $publicUrl,
+            'avatar_url' => $avatarUrl,
             'user' => $this->formatUserResponse($user),
         ]);
     }
@@ -745,11 +746,11 @@ class AuthController extends Controller
         $user->banner_url = $path;
         $user->save();
 
-        $publicUrl = Storage::disk('public')->url($path).'?t='.time();
+        $bannerUrl = route('api.v1.auth.profile.banner', ['identifier' => $user->identifier, 't' => time()]);
 
         return response()->json([
             'message' => 'Profile banner updated successfully.',
-            'banner_url' => $publicUrl,
+            'banner_url' => $bannerUrl,
             'user' => $this->formatUserResponse($user),
         ]);
     }
@@ -1001,6 +1002,13 @@ class AuthController extends Controller
             ? route('api.v1.auth.profile.banner', ['identifier' => $user->identifier, 't' => strtotime((string) $user->updated_at)])
             : null;
 
+        $activeSessionsCount = LoginHistory::where('user_id', $user->id)
+            ->activeSessions()
+            ->count();
+        if ($activeSessionsCount <= 0) {
+            $activeSessionsCount = max(1, $user->tokens()->count());
+        }
+
         return [
             'id' => $user->id,
             'identifier' => $user->identifier,
@@ -1015,6 +1023,8 @@ class AuthController extends Controller
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),
             'timezone' => config('app.timezone', 'UTC'),
+            'created_at' => $user->created_at?->toIso8601String(),
+            'active_sessions_count' => $activeSessionsCount,
         ];
     }
 }

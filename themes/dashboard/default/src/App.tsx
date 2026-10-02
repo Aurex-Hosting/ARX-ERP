@@ -7,6 +7,7 @@ import { ProfilePage } from './pages/profile/ProfilePage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { PayablesDebtPage } from './pages/modules/PayablesDebtPage';
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -57,6 +58,7 @@ const AppContent: React.FC = () => {
     <DashboardLayout currentPath={currentPath} onNavigate={navigate}>
       {currentPath === '/' && <DashboardOverview />}
       {currentPath === '/profile' && <ProfilePage />}
+      {currentPath.startsWith('/payables-debt') && <PayablesDebtPage />}
     </DashboardLayout>
   );
 };

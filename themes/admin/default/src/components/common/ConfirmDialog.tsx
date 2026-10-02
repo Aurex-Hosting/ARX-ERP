@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -9,6 +10,7 @@ interface ConfirmDialogProps {
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'primary';
   loading?: boolean;
+  children?: React.ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -21,6 +23,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   cancelText = 'Cancel',
   variant = 'danger',
   loading = false,
+  children,
   onConfirm,
   onCancel,
 }) => {
@@ -52,8 +55,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   const { iconBg, confirmBtn, Icon } = getVariantStyles();
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
@@ -79,6 +82,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           {message}
         </p>
 
+        {/* Optional Custom Content */}
+        {children && <div className="pt-1">{children}</div>}
+
         {/* Actions */}
         <div className="pt-2 flex items-center justify-end gap-2.5">
           <button
@@ -99,6 +105,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

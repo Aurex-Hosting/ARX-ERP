@@ -20,10 +20,10 @@ class LicenseManager
      */
     public function getInstallationId(): string
     {
-        // 1. Check environment variable override
-        $envId = env('INSTALLATION_ID');
-        if (! empty($envId)) {
-            return trim((string) $envId);
+        // 1. Check configuration or environment variable
+        $configuredId = config('license.installation_id') ?: env('INSTALLATION_ID');
+        if (! empty($configuredId)) {
+            return trim((string) $configuredId);
         }
 
         // 2. Check storage file
@@ -35,14 +35,29 @@ class LicenseManager
             }
         }
 
-        // 3. Generate hardware fingerprint
+        // 3. Check database setting
+        try {
+            $storedDbId = $this->settingsManager->get('system.installation_id');
+            if (! empty($storedDbId)) {
+                return trim((string) $storedDbId);
+            }
+        } catch (\Throwable) {
+            // ignore if DB not ready
+        }
+
+        // 4. Generate hardware fingerprint
         $fingerprint = $this->generateHardwareFingerprint();
 
-        // 4. Persist in storage
-        if (! File::isDirectory(dirname($storagePath))) {
-            File::makeDirectory(dirname($storagePath), 0755, true, true);
+        // 5. Persist in storage & database setting
+        try {
+            if (! File::isDirectory(dirname($storagePath))) {
+                File::makeDirectory(dirname($storagePath), 0755, true, true);
+            }
+            File::put($storagePath, $fingerprint);
+            $this->settingsManager->set('system.installation_id', $fingerprint, 'system', 'string');
+        } catch (\Throwable) {
+            // ignore
         }
-        File::put($storagePath, $fingerprint);
 
         return $fingerprint;
     }
@@ -294,11 +309,13 @@ class LicenseManager
             }
         }
 
+        $appSecret = $this->getAppSecret();
+
         return [
-            'is_valid' => ! $isExpired && ! empty($this->settingsManager->get('system.license.app_secret')),
+            'is_valid' => ! $isExpired && ! empty($appSecret),
             'message' => $isExpired ? 'License expired' : 'Operating in offline cache mode',
             'expires_at' => $storedExpires,
-            'app_secret' => $this->settingsManager->get('system.license.app_secret'),
+            'app_secret' => $appSecret,
             'installation_id' => $installationId,
             'last_checked_at' => now()->toIso8601String(),
         ];
@@ -309,9 +326,20 @@ class LicenseManager
      */
     public function getActiveLicenseKey(): ?string
     {
-        return $this->settingsManager->get('system.license.key')
-            ?: env('PRODUCT_LICENSE_KEY')
-            ?: null;
+        try {
+            $dbKey = $this->settingsManager->get('system.license.key');
+            if (! empty($dbKey)) {
+                return trim((string) $dbKey);
+            }
+        } catch (\Throwable) {
+            // ignore if DB not ready
+        }
+
+        $configKey = config('license.key')
+            ?: env('LICENSE_KEY')
+            ?: env('PRODUCT_LICENSE_KEY');
+
+        return ! empty($configKey) ? trim((string) $configKey) : null;
     }
 
     /**
@@ -319,7 +347,19 @@ class LicenseManager
      */
     public function getAppSecret(): ?string
     {
-        return (string) $this->settingsManager->get('system.license.app_secret', '');
+        try {
+            $dbSecret = $this->settingsManager->get('system.license.app_secret');
+            if (! empty($dbSecret)) {
+                return trim((string) $dbSecret);
+            }
+        } catch (\Throwable) {
+            // ignore if DB not ready
+        }
+
+        $configSecret = config('license.app_secret')
+            ?: env('LICENSE_APP_SECRET');
+
+        return ! empty($configSecret) ? trim((string) $configSecret) : '';
     }
 
     /**
@@ -335,10 +375,11 @@ class LicenseManager
 
         return [
             'has_license' => ! empty($key),
+            'active' => $validation['is_valid'] ?? false,
+            'is_valid' => $validation['is_valid'] ?? false,
             'license_key' => $key ? (substr($key, 0, 4).'-****-****-'.substr($key, -4)) : null,
             'full_license_key' => $key,
             'installation_id' => $installationId,
-            'is_valid' => $validation['is_valid'] ?? false,
             'expires_at' => $validation['expires_at'] ?? null,
             'app_secret' => ! empty($validation['app_secret']) ? (substr($validation['app_secret'], 0, 6).'...'.substr($validation['app_secret'], -4)) : null,
             'last_checked_at' => $validation['last_checked_at'] ?? null,
@@ -366,10 +407,14 @@ class LicenseManager
         $this->settingsManager->set('system.license.activated_at', now()->toIso8601String(), 'system', 'string');
 
         // Update .env file
-        $this->updateEnvFile([
-            'PRODUCT_LICENSE_KEY' => $licenseKey,
+        $envEntries = [
+            'LICENSE_KEY' => $licenseKey,
             'INSTALLATION_ID' => $this->getInstallationId(),
-        ]);
+        ];
+        if (! empty($data['appSecret'])) {
+            $envEntries['LICENSE_APP_SECRET'] = (string) $data['appSecret'];
+        }
+        $this->updateEnvFile($envEntries);
     }
 
     /**

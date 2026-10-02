@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Layers, Box, Settings, Users, ChevronRight, X } from 'lucide-react';
+import { LayoutDashboard, Layers, Box, Settings, Users, FileClock, X } from 'lucide-react';
 import api from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 import { NavigationItem } from '../../types';
@@ -22,6 +22,15 @@ const getIcon = (name: string) => {
       return <Settings className="w-5 h-5 shrink-0" />;
     case 'layers':
       return <Layers className="w-5 h-5 shrink-0" />;
+    case 'file-clock':
+    case 'fileclock':
+    case 'document-time':
+    case 'documenttime':
+    case 'document-clock':
+    case 'documentclock':
+    case 'payables-debt':
+    case 'credit-card':
+      return <FileClock className="w-5 h-5 shrink-0" />;
     default:
       return <Box className="w-5 h-5 shrink-0" />;
   }
@@ -110,17 +119,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={item.id}
               onClick={() => handleNavigate(item.route)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                 currentPath === item.route
                   ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-900/60'
               }`}
             >
-              <div className="flex items-center gap-3.5 truncate">
-                {getIcon(item.icon)}
-                <span className="truncate">{item.label}</span>
-              </div>
-              <ChevronRight className="w-4 h-4 shrink-0 opacity-40" />
+              {getIcon(item.icon)}
+              <span className="truncate">{item.label}</span>
             </button>
           ))}
         </div>

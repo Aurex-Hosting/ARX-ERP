@@ -25,7 +25,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, currentTab, 
           onSelectTab={onSelectTab}
         />
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-slate-100/60 dark:bg-slate-950 transition-colors duration-200">
-          {children}
+          <div key={currentTab} className="animate-page-enter">
+            {children}
+          </div>
         </main>
       </div>
     </div>

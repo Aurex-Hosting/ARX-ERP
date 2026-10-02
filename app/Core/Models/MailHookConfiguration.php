@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property bool $hook_verify_email_on_created
  * @property bool $hook_account_status_change
  * @property bool $hook_notify_broadcast
+ * @property bool $hook_system_update_available
  * @property array<int, array<string, string>>|null $custom_placeholders
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -34,6 +35,7 @@ class MailHookConfiguration extends Model
         'hook_verify_email_on_created',
         'hook_account_status_change',
         'hook_notify_broadcast',
+        'hook_system_update_available',
         'custom_placeholders',
     ];
 
@@ -43,6 +45,7 @@ class MailHookConfiguration extends Model
         'hook_verify_email_on_created' => 'boolean',
         'hook_account_status_change' => 'boolean',
         'hook_notify_broadcast' => 'boolean',
+        'hook_system_update_available' => 'boolean',
         'custom_placeholders' => 'array',
     ];
 
@@ -57,6 +60,7 @@ class MailHookConfiguration extends Model
             'hook_verify_email_on_created' => true,
             'hook_account_status_change' => true,
             'hook_notify_broadcast' => true,
+            'hook_system_update_available' => true,
             'custom_placeholders' => [
                 [
                     'key' => 'support_email',

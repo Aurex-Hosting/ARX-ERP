@@ -27,6 +27,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Active License Credentials & Installation ID
+    |--------------------------------------------------------------------------
+    */
+    'key' => env('LICENSE_KEY', env('PRODUCT_LICENSE_KEY')),
+    'installation_id' => env('INSTALLATION_ID'),
+    'app_secret' => env('LICENSE_APP_SECRET'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Update Check Interval
     |--------------------------------------------------------------------------
     | Default cadence in hours for automated update background checks.

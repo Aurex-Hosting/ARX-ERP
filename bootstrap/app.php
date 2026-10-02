@@ -12,6 +12,17 @@ use Illuminate\Http\Request;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 
+// Polyfill POSIX signal constants on Windows CLI for Octane server support
+if (! defined('SIGINT')) {
+    define('SIGINT', 2);
+}
+if (! defined('SIGTERM')) {
+    define('SIGTERM', 15);
+}
+if (! defined('SIGHUP')) {
+    define('SIGHUP', 1);
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

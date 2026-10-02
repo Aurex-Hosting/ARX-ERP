@@ -8,6 +8,7 @@ use App\Core\Services\ModuleManager;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -191,12 +192,13 @@ class ModuleController extends Controller
     }
 
     /**
-     * Uninstall a module (cleans up DB state and permissions).
+     * Uninstall a module (cleans up DB state and permissions, optionally rolls back data).
      */
-    public function destroy(string $slug): JsonResponse
+    public function destroy(Request $request, string $slug): JsonResponse
     {
         try {
-            $this->moduleManager->uninstall($slug);
+            $deleteData = $request->boolean('delete_data', false);
+            $this->moduleManager->uninstall($slug, $deleteData);
 
             return response()->json([
                 'message' => "Module '{$slug}' uninstalled.",
@@ -242,5 +244,83 @@ class ModuleController extends Controller
                 'message' => $e->getMessage(),
             ], 404);
         }
+    }
+
+    /**
+     * Stream module icon image.
+     */
+    public function icon(string $slug): BinaryFileResponse|JsonResponse
+    {
+        $path = $this->moduleManager->getModuleAssetPath($slug, 'icon');
+
+        if (! $path || ! File::exists($path)) {
+            return response()->json(['message' => 'Module icon not found.'], 404);
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimeType = match ($extension) {
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            default => File::mimeType($path) ?: 'application/octet-stream',
+        };
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Stream module banner image.
+     */
+    public function banner(string $slug): BinaryFileResponse|JsonResponse
+    {
+        $path = $this->moduleManager->getModuleAssetPath($slug, 'banner');
+
+        if (! $path || ! File::exists($path)) {
+            return response()->json(['message' => 'Module banner not found.'], 404);
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimeType = match ($extension) {
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            default => File::mimeType($path) ?: 'application/octet-stream',
+        };
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Get module README content and metadata for preview.
+     */
+    public function readme(string $slug): JsonResponse
+    {
+        $manifest = $this->moduleManager->discover()->get($slug);
+
+        if (! $manifest) {
+            return response()->json(['message' => "Module '{$slug}' not found."], 404);
+        }
+
+        $content = $this->moduleManager->getModuleReadme($slug);
+        $hasIcon = $this->moduleManager->hasModuleAsset($slug, 'icon');
+        $hasBanner = $this->moduleManager->hasModuleAsset($slug, 'banner');
+
+        return response()->json([
+            'slug' => $slug,
+            'name' => $manifest['name'] ?? $slug,
+            'has_readme' => $content !== null,
+            'content' => $content,
+            'icon_url' => $hasIcon ? route('api.v1.modules.icon', ['slug' => $slug]) : null,
+            'banner_url' => $hasBanner ? route('api.v1.modules.banner', ['slug' => $slug]) : null,
+            'manifest' => $manifest,
+        ]);
     }
 }

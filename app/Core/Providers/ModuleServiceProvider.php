@@ -47,12 +47,25 @@ class ModuleServiceProvider extends ServiceProvider
     {
         $area = $module->area;
         $slug = $module->slug;
-        $modulePath = base_path("modules/{$area}/{$slug}");
+        $name = $module->name;
+        $manifest = $module->manifest ?? [];
 
-        if (! File::isDirectory($modulePath)) {
-            // Check in shared if not found
-            $modulePath = base_path("modules/shared/{$slug}");
-            if (! File::isDirectory($modulePath)) {
+        $modulePath = $manifest['path'] ?? null;
+        if (! $modulePath || ! File::isDirectory($modulePath)) {
+            $candidates = [
+                base_path("modules/{$area}/{$name}"),
+                base_path("modules/{$area}/{$slug}"),
+                base_path("modules/shared/{$name}"),
+                base_path("modules/shared/{$slug}"),
+            ];
+            $modulePath = null;
+            foreach ($candidates as $candidate) {
+                if (File::isDirectory($candidate)) {
+                    $modulePath = $candidate;
+                    break;
+                }
+            }
+            if (! $modulePath) {
                 return;
             }
         }

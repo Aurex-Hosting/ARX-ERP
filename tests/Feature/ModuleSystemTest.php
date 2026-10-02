@@ -189,4 +189,39 @@ class ModuleSystemTest extends TestCase
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'application/zip');
     }
+
+    public function test_can_stream_module_icon_and_banner_and_readme(): void
+    {
+        // 1. Icon stream
+        $iconResponse = $this->get('/api/v1/modules/payables-debt/icon');
+        $iconResponse->assertStatus(200)
+            ->assertHeader('Content-Type', 'image/png');
+
+        // 2. Banner stream
+        $bannerResponse = $this->get('/api/v1/modules/payables-debt/banner');
+        $bannerResponse->assertStatus(200)
+            ->assertHeader('Content-Type', 'image/png');
+
+        // 3. Readme preview endpoint
+        $readmeResponse = $this->getJson('/api/v1/modules/payables-debt/readme');
+        $readmeResponse->assertStatus(200)
+            ->assertJsonPath('slug', 'payables-debt')
+            ->assertJsonPath('has_readme', true)
+            ->assertJsonStructure(['slug', 'name', 'has_readme', 'content', 'icon_url', 'banner_url']);
+
+        $this->assertStringContainsString('Payables & Debt', $readmeResponse->json('content'));
+
+        // 4. Admin modules list includes icon_url, banner_url, and has_readme
+        $listResponse = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/admin/modules?area=dashboard');
+
+        $listResponse->assertStatus(200);
+        $modules = collect($listResponse->json('modules'));
+        $payables = $modules->firstWhere('slug', 'payables-debt');
+
+        $this->assertNotNull($payables);
+        $this->assertTrue($payables['has_readme']);
+        $this->assertNotNull($payables['icon_url']);
+        $this->assertNotNull($payables['banner_url']);
+    }
 }

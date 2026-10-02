@@ -7,7 +7,9 @@ namespace App\Core\Services;
 use App\Core\Models\Module as ModuleModel;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use ZipArchive;
@@ -70,6 +72,9 @@ class ModuleManager
 
         return $discovered->map(function (array $manifest, string $slug) use ($installed): array {
             $model = $installed->get($slug);
+            $hasIcon = $this->hasModuleAsset($slug, 'icon');
+            $hasBanner = $this->hasModuleAsset($slug, 'banner');
+            $hasReadme = $this->hasModuleReadme($slug);
 
             return [
                 'slug' => $slug,
@@ -83,9 +88,128 @@ class ModuleManager
                 'is_installed' => (bool) ($model?->is_installed ?? false),
                 'is_enabled' => (bool) ($model?->is_enabled ?? false),
                 'installed_at' => $model?->installed_at?->toIso8601String(),
+                'icon' => $manifest['icon'] ?? null,
+                'banner' => $manifest['banner'] ?? null,
+                'icon_url' => $hasIcon ? route('api.v1.modules.icon', ['slug' => $slug]) : null,
+                'banner_url' => $hasBanner ? route('api.v1.modules.banner', ['slug' => $slug]) : null,
+                'has_readme' => $hasReadme,
                 'manifest' => $manifest,
             ];
         })->values();
+    }
+
+    /**
+     * Resolve the filesystem directory for a given module slug.
+     */
+    public function getModulePath(string $slug): ?string
+    {
+        $manifest = $this->discover()->get($slug);
+        if ($manifest && ! empty($manifest['path']) && File::isDirectory($manifest['path'])) {
+            return $manifest['path'];
+        }
+
+        $studlyName = Str::studly($slug);
+        $candidates = [
+            base_path("modules/dashboard/{$studlyName}"),
+            base_path("modules/dashboard/{$slug}"),
+            base_path("modules/admin/{$studlyName}"),
+            base_path("modules/admin/{$slug}"),
+            base_path("modules/shared/{$studlyName}"),
+            base_path("modules/shared/{$slug}"),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (File::isDirectory($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a module asset exists.
+     */
+    public function hasModuleAsset(string $slug, string $type): bool
+    {
+        return $this->getModuleAssetPath($slug, $type) !== null;
+    }
+
+    /**
+     * Resolve the absolute path to a module asset (icon, banner).
+     */
+    public function getModuleAssetPath(string $slug, string $type): ?string
+    {
+        $manifest = $this->discover()->get($slug);
+        $modulePath = $this->getModulePath($slug);
+
+        if (! $modulePath || ! File::isDirectory($modulePath)) {
+            return null;
+        }
+
+        if ($type === 'icon') {
+            if (! empty($manifest['icon'])) {
+                $iconPath = $modulePath.DIRECTORY_SEPARATOR.ltrim((string) $manifest['icon'], '/\\');
+                if (File::exists($iconPath)) {
+                    return $iconPath;
+                }
+            }
+
+            $fallbacks = ['icon.png', 'icon.svg', 'icon.webp', 'icon.jpg', 'icon.jpeg', 'assets/icon.png', 'assets/icon.svg'];
+            foreach ($fallbacks as $fallback) {
+                $candidate = $modulePath.DIRECTORY_SEPARATOR.$fallback;
+                if (File::exists($candidate)) {
+                    return $candidate;
+                }
+            }
+        } elseif ($type === 'banner') {
+            if (! empty($manifest['banner'])) {
+                $bannerPath = $modulePath.DIRECTORY_SEPARATOR.ltrim((string) $manifest['banner'], '/\\');
+                if (File::exists($bannerPath)) {
+                    return $bannerPath;
+                }
+            }
+
+            $fallbacks = ['banner.png', 'banner.svg', 'banner.webp', 'banner.jpg', 'banner.jpeg', 'assets/banner.png', 'assets/banner.svg'];
+            foreach ($fallbacks as $fallback) {
+                $candidate = $modulePath.DIRECTORY_SEPARATOR.$fallback;
+                if (File::exists($candidate)) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a module has a README file.
+     */
+    public function hasModuleReadme(string $slug): bool
+    {
+        return $this->getModuleReadme($slug) !== null;
+    }
+
+    /**
+     * Read the contents of a module's README.md file.
+     */
+    public function getModuleReadme(string $slug): ?string
+    {
+        $modulePath = $this->getModulePath($slug);
+
+        if (! $modulePath || ! File::isDirectory($modulePath)) {
+            return null;
+        }
+
+        $candidates = ['README.md', 'readme.md', 'README.MD', 'Readme.md'];
+        foreach ($candidates as $candidate) {
+            $path = $modulePath.DIRECTORY_SEPARATOR.$candidate;
+            if (File::exists($path)) {
+                return File::get($path);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -116,6 +240,37 @@ class ModuleManager
         $permissions = $manifest['permissions'] ?? [];
         foreach ($permissions as $permissionName) {
             Permission::firstOrCreate(['name' => $permissionName, 'guard_name' => 'web']);
+        }
+
+        // Run module migrations if present
+        $modulePath = $manifest['path'] ?? null;
+        if (! $modulePath || ! File::isDirectory($modulePath)) {
+            $studlyName = Str::studly($manifest['name'] ?? $slug);
+            $area = $manifest['area'] ?? 'dashboard';
+            $candidates = [
+                base_path("modules/{$area}/{$studlyName}"),
+                base_path("modules/{$area}/{$slug}"),
+                base_path("modules/shared/{$studlyName}"),
+                base_path("modules/shared/{$slug}"),
+            ];
+            foreach ($candidates as $candidate) {
+                if (File::isDirectory($candidate)) {
+                    $modulePath = $candidate;
+                    break;
+                }
+            }
+        }
+
+        if ($modulePath && File::isDirectory($modulePath.'/Database/Migrations')) {
+            $relPath = str_replace('\\', '/', Str::after($modulePath.'/Database/Migrations', base_path().DIRECTORY_SEPARATOR));
+            try {
+                Artisan::call('migrate', [
+                    '--path' => $relPath,
+                    '--force' => true,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error("Module {$slug} migration error: ".$e->getMessage());
+            }
         }
 
         $module = ModuleModel::updateOrCreate(
@@ -165,25 +320,72 @@ class ModuleManager
     }
 
     /**
-     * Uninstall a module (rollback permissions & clear status).
+     * Uninstall a module (rollback permissions & clear status, optionally delete saved data).
      */
-    public function uninstall(string $slug): void
+    public function uninstall(string $slug, bool $deleteData = false): void
     {
         $module = ModuleModel::where('slug', $slug)->first();
 
         if ($module) {
-            $this->hookManager->doAction('module.uninstalling', $module);
+            $this->hookManager->doAction('module.uninstalling', $module, $deleteData);
 
-            // Remove permissions registered by this module
+            // 1. Remove permissions registered by this module
             $permissions = $module->manifest['permissions'] ?? [];
             if (! empty($permissions)) {
                 Permission::whereIn('name', $permissions)->delete();
             }
 
+            // 2. If deleteData is requested, rollback migrations and purge stored files
+            if ($deleteData) {
+                $manifest = $module->manifest ?? [];
+                $modulePath = $manifest['path'] ?? null;
+                if (! $modulePath || ! File::isDirectory($modulePath)) {
+                    $studlyName = Str::studly($manifest['name'] ?? $slug);
+                    $area = $manifest['area'] ?? $module->area ?? 'dashboard';
+                    $candidates = [
+                        base_path("modules/{$area}/{$studlyName}"),
+                        base_path("modules/{$area}/{$slug}"),
+                        base_path("modules/shared/{$studlyName}"),
+                        base_path("modules/shared/{$slug}"),
+                    ];
+                    foreach ($candidates as $candidate) {
+                        if (File::isDirectory($candidate)) {
+                            $modulePath = $candidate;
+                            break;
+                        }
+                    }
+                }
+
+                if ($modulePath && File::isDirectory($modulePath.'/Database/Migrations')) {
+                    $relPath = str_replace('\\', '/', Str::after($modulePath.'/Database/Migrations', base_path().DIRECTORY_SEPARATOR));
+                    try {
+                        Artisan::call('migrate:reset', [
+                            '--path' => $relPath,
+                            '--force' => true,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning("Module {$slug} rollback failed: ".$e->getMessage());
+                    }
+                }
+
+                // Purge module-specific private storage directory
+                $moduleStorage = storage_path("app/private/{$slug}");
+                if (File::isDirectory($moduleStorage)) {
+                    File::deleteDirectory($moduleStorage);
+                }
+                // Also check payables specific private storage if slug matches
+                if (str_contains($slug, 'payable')) {
+                    $payablesStorage = storage_path('app/private/payables');
+                    if (File::isDirectory($payablesStorage)) {
+                        File::deleteDirectory($payablesStorage);
+                    }
+                }
+            }
+
             $module->delete();
         }
 
-        $this->hookManager->doAction('module.uninstalled', $slug);
+        $this->hookManager->doAction('module.uninstalled', $slug, $deleteData);
     }
 
     /**
@@ -248,6 +450,8 @@ class ModuleManager
             'version' => '1.0.0',
             'description' => $description ?: "{$studlyName} Module for ARX-ERP",
             'area' => $area,
+            'icon' => 'icon.png',
+            'banner' => 'banner.png',
             'author' => [
                 'name' => $authorName ?: 'Developer',
                 'url' => '',
@@ -296,6 +500,21 @@ class ModuleManager
             "{$modulePath}/Routes/api.php",
             $replacements
         );
+
+        // 5. README.md
+        $this->generateFileFromStub(
+            base_path('stubs/module/README.md.stub'),
+            "{$modulePath}/README.md",
+            $replacements
+        );
+
+        // 6. Assets (icon.png & banner.png)
+        if (File::exists(base_path('stubs/module/icon.png'))) {
+            File::copy(base_path('stubs/module/icon.png'), "{$modulePath}/icon.png");
+        }
+        if (File::exists(base_path('stubs/module/banner.png'))) {
+            File::copy(base_path('stubs/module/banner.png'), "{$modulePath}/banner.png");
+        }
 
         $moduleModel = null;
         if ($autoInstall) {
@@ -461,6 +680,8 @@ class ModuleManager
             'version' => '1.0.0',
             'description' => $description ?: "{$studlyName} Module for ARX-ERP",
             'area' => $area,
+            'icon' => 'icon.png',
+            'banner' => 'banner.png',
             'author' => [
                 'name' => $authorName ?: 'Developer',
                 'url' => '',
@@ -511,21 +732,19 @@ class ModuleManager
         );
 
         // 5. README.md
-        $readme = "# {$studlyName} Module\n\n"
-            ."This is an ARX-ERP module starter kit.\n\n"
-            ."## Structure\n"
-            ."- `module.json`: Module manifest & permissions\n"
-            ."- `Providers/{$studlyName}ServiceProvider.php`: Service provider registration\n"
-            ."- `Http/Controllers/{$studlyName}Controller.php`: Controller\n"
-            ."- `Routes/api.php`: API routes\n"
-            ."- `Database/Migrations/`: Database migration scripts\n"
-            ."- `Models/`: Eloquent models\n\n"
-            ."## How to Install\n"
-            ."1. Build your custom logic locally.\n"
-            ."2. Zip this folder.\n"
-            ."3. In Admin Panel -> **Modules**, click **Upload ZIP** to install.\n";
+        $this->generateFileFromStub(
+            base_path('stubs/module/README.md.stub'),
+            "{$modulePath}/README.md",
+            $replacements
+        );
 
-        File::put("{$modulePath}/README.md", $readme);
+        // 6. Assets (icon.png & banner.png)
+        if (File::exists(base_path('stubs/module/icon.png'))) {
+            File::copy(base_path('stubs/module/icon.png'), "{$modulePath}/icon.png");
+        }
+        if (File::exists(base_path('stubs/module/banner.png'))) {
+            File::copy(base_path('stubs/module/banner.png'), "{$modulePath}/banner.png");
+        }
 
         // Create Zip
         $exportDir = storage_path('app/exports');

@@ -28,7 +28,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, curr
           onNavigate={onNavigate}
         />
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-slate-100/60 dark:bg-slate-950 transition-colors duration-200">
-          {children}
+          <div key={currentPath} className="animate-page-enter">
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -29,3 +29,6 @@ Thumbs.db
 *.zip
 .ai/
 
+rr
+.rr.yaml
+rr.exe

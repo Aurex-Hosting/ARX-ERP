@@ -98,13 +98,23 @@ class InstallCommand extends Command
         $this->components->info('Step 4: Central Release Check & Package Download');
         $this->checkAndDownloadReleaseProcess();
 
-        // 6. Application URL Configuration
+        // 6. Application URL & Timezone Configuration
         $this->line('');
-        $this->components->info('Step 5: Application URL Configuration');
+        $this->components->info('Step 5: Application URL & Timezone Configuration');
         $defaultUrl = env('APP_URL') ?: 'http://localhost:8000';
         $appUrl = $this->ask('Enter the primary URL for this application', $defaultUrl);
         $this->licenseManager->updateEnvFile(['APP_URL' => $appUrl]);
         config(['app.url' => $appUrl]);
+
+        $this->line('  <fg=cyan>Timezone reference: https://www.php.net/manual/en/timezones.php</>');
+        $defaultTz = env('TIMEZONE', env('APP_TIMEZONE', 'UTC'));
+        $timezone = $this->ask('Enter application timezone (e.g. UTC, America/New_York, Asia/Kolkata)', $defaultTz);
+        if (! in_array($timezone, \DateTimeZone::listIdentifiers(), true)) {
+            $this->warn("Timezone '{$timezone}' is not recognized. Defaulting to UTC.");
+            $timezone = 'UTC';
+        }
+        $this->licenseManager->updateEnvFile(['TIMEZONE' => $timezone]);
+        config(['app.timezone' => $timezone]);
 
         // 7. Database Configuration (pgsql & mysql)
         $this->line('');
@@ -114,6 +124,27 @@ class InstallCommand extends Command
             $this->error('Installation aborted due to database connection failure.');
 
             return self::FAILURE;
+        }
+
+        // Redis Configuration
+        if ($this->confirm('Would you like to configure Redis (caching & background job queues)?', false)) {
+            $redisHost = $this->ask('Redis Host', '127.0.0.1');
+            $redisPort = $this->ask('Redis Port', '6379');
+            $redisPass = $this->secret('Redis Password (press Enter if none)') ?: 'null';
+            $defaultClient = extension_loaded('redis') ? 'phpredis' : 'predis';
+            $redisClient = $this->choice('Redis Client', ['phpredis', 'predis'], $defaultClient === 'phpredis' ? 0 : 1);
+            $useCache = $this->confirm('Use Redis for application cache store?', true);
+            $useQueue = $this->confirm('Use Redis for background queues?', true);
+
+            $this->licenseManager->updateEnvFile([
+                'REDIS_CLIENT' => $redisClient,
+                'REDIS_HOST' => $redisHost,
+                'REDIS_PORT' => $redisPort,
+                'REDIS_PASSWORD' => $redisPass,
+                'CACHE_STORE' => $useCache ? 'redis' : 'database',
+                'QUEUE_CONNECTION' => $useQueue ? 'redis' : 'database',
+            ]);
+            $this->info('✓ Redis configuration saved.');
         }
 
         // 8. Application Encryption Key

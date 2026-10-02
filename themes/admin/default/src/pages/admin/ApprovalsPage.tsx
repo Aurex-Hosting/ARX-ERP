@@ -43,7 +43,7 @@ export const ApprovalsPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="w-full space-y-6 animate-in fade-in duration-200">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">AI Human-in-the-Loop Queue</h1>
         <p className="text-xs text-slate-600 dark:text-slate-400">

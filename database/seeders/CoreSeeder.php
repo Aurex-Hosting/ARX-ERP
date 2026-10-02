@@ -48,6 +48,8 @@ class CoreSeeder extends Seeder
             'themes.general.manage',
             'themes.quick_links.view',
             'themes.quick_links.manage',
+            'themes.dashboard.view',
+            'themes.dashboard.manage',
             'backups.view',
             'backups.create',
             'backups.download',

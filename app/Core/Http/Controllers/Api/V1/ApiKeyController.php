@@ -257,6 +257,8 @@ class ApiKeyController extends Controller
                 'themes.general.manage' => 'Modify General Branding, Logos & Wallpapers',
                 'themes.quick_links.view' => 'View Top Bar & Login Quick Links',
                 'themes.quick_links.manage' => 'Manage & Configure Quick Links',
+                'themes.dashboard.view' => 'View Dashboard Overview Widgets Configuration',
+                'themes.dashboard.manage' => 'Manage Dashboard Overview Widgets & Layout',
             ],
             'Backups & Disaster Recovery' => [
                 'backups.view' => 'View Backups & Configurations',

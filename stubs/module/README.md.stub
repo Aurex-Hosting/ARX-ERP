@@ -1,0 +1,29 @@
+# {{STUDLY_NAME}} Module
+
+A modular business package designed for **ARX-ERP**.
+
+---
+
+## Overview
+{{STUDLY_NAME}} provides decoupled business logic, data models, and API endpoints to extend your ERP operations.
+
+## Visual Assets
+- **Icon**: `icon.png` (512x512) displayed on module cards and navigation badges.
+- **Banner**: `banner.png` (1200x400) showcase graphic presented on module cards and the Read More drawer.
+- **Manifest**: `module.json` links the assets via `"icon": "icon.png"` and `"banner": "banner.png"`.
+
+## Architecture & Directory Structure
+- `module.json` - Module manifest, permissions, and menu configuration
+- `Providers/{{STUDLY_NAME}}ServiceProvider.php` - Service provider registration
+- `Http/Controllers/{{STUDLY_NAME}}Controller.php` - API controller
+- `Routes/api.php` - Module API routes
+- `Database/Migrations/` - Database migration files
+- `Database/Seeders/` - Database seeders
+- `Models/` - Eloquent models
+- `Tests/` - Automated unit and feature tests
+
+## How to Install
+1. Customize your business logic and test locally.
+2. Package the module directory into a `.zip` archive.
+3. Open the **Admin Panel → Modules** page in ARX-ERP.
+4. Click **Upload ZIP**, select your archive, and activate!

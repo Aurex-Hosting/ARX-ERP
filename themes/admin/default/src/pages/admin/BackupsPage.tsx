@@ -396,7 +396,7 @@ export const BackupsPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="w-full space-y-6 animate-in fade-in duration-200">
       {/* Toast Notification */}
       {notification && (
         <div

@@ -2,6 +2,7 @@
 
 namespace App\Core\Services;
 
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -15,8 +16,13 @@ class UpdateManager
     public function __construct(
         protected LicenseManager $licenseManager,
         protected BackupManager $backupManager,
-        protected SettingsManager $settingsManager
-    ) {}
+        protected SettingsManager $settingsManager,
+        protected ?NotificationService $notificationService = null,
+        protected ?MailService $mailService = null
+    ) {
+        $this->notificationService ??= app(NotificationService::class);
+        $this->mailService ??= app(MailService::class);
+    }
 
     /**
      * Get current application version info from version.json.
@@ -141,7 +147,97 @@ class UpdateManager
         $this->settingsManager->set('system.updates.latest_info', json_encode($result), 'system', 'string');
         $this->settingsManager->set('system.updates.last_checked_at', now()->toIso8601String(), 'system', 'string');
 
+        // Automatically dispatch in-app bell notification and SMTP email hook if new version found
+        if ($updateAvailable) {
+            $this->notifyAdminsIfUpdateAvailable($result);
+        }
+
         return $result;
+    }
+
+    /**
+     * Dispatch in-app notification and optional SMTP email to Super Administrators
+     * when a new release package is detected.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    public function notifyAdminsIfUpdateAvailable(array $result): void
+    {
+        if (empty($result['update_available']) || empty($result['latest_version'])) {
+            return;
+        }
+
+        $latestVersion = (string) $result['latest_version'];
+        $lastNotifiedVersion = (string) $this->settingsManager->get('system.updates.last_notified_version', '');
+
+        // Deduplication: Avoid notifying repeatedly for the exact same version
+        if ($lastNotifiedVersion === $latestVersion) {
+            return;
+        }
+
+        $superAdminRole = config('arx.roles.super_admin', 'super-admin');
+
+        try {
+            $admins = User::role($superAdminRole)
+                ->where('is_active', true)
+                ->where('user_type', '!=', 'ai_agent')
+                ->get();
+        } catch (\Throwable) {
+            $admins = collect();
+        }
+
+        if ($admins->isEmpty()) {
+            $admins = User::where('is_active', true)
+                ->where('user_type', '!=', 'ai_agent')
+                ->limit(2)
+                ->get();
+        }
+
+        if ($admins->isEmpty()) {
+            return;
+        }
+
+        $packageName = $result['name'] ?? "ARX-ERP v{$latestVersion}";
+
+        foreach ($admins as $admin) {
+            // 1. In-App Bell Notification
+            try {
+                $this->notificationService->sendToUser(
+                    user: $admin,
+                    title: "New System Update Available: v{$latestVersion}",
+                    body: "A new verified ARX-ERP release ({$packageName}) is ready. Review release notes and update safely.",
+                    type: 'info',
+                    category: 'system',
+                    actionButtons: [
+                        [
+                            'label' => 'View & Apply Update',
+                            'action' => 'navigate',
+                            'url' => '#updates',
+                            'type' => 'primary',
+                        ],
+                    ],
+                    metadata: [
+                        'latest_version' => $latestVersion,
+                        'package_name' => $packageName,
+                        'published_at' => $result['published_at'] ?? null,
+                        'zip_hash' => $result['zip_hash'] ?? null,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::warning("Failed to dispatch in-app update notification to user #{$admin->id}: ".$e->getMessage());
+            }
+
+            // 2. SMTP Email Trigger Hook
+            try {
+                $this->mailService->sendSystemUpdateMail($admin, $result);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to dispatch update email notification to {$admin->email}: ".$e->getMessage());
+            }
+        }
+
+        // Record last notified version to prevent repetitive spam
+        $this->settingsManager->set('system.updates.last_notified_version', $latestVersion, 'system', 'string');
+        $this->settingsManager->set('system.updates.last_notified_at', now()->toIso8601String(), 'system', 'string');
     }
 
     /**

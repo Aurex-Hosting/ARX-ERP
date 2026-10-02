@@ -1,0 +1,70 @@
+{
+  "name": "PayablesDebt",
+  "slug": "payables-debt",
+  "namespace": "Modules\\Dashboard\\PayablesDebt",
+  "version": "1.0.0",
+  "description": "Payables & Debt – Liabilities & Recurring Payment Tracker for ARX-ERP",
+  "area": "dashboard",
+  "icon": "icon.png",
+  "banner": "banner.png",
+  "author": {
+    "name": "ARX Solutions",
+    "url": "https://arx-erp.com"
+  },
+  "core_version": ">=1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "liabilities.view",
+    "liabilities.create",
+    "liabilities.edit",
+    "liabilities.doc.upload",
+    "liabilities.doc.view",
+    "liabilities.status.update",
+    "liabilities.service.cancel",
+    "liabilities.service.delete",
+    "liabilities.notifications.config"
+  ],
+  "menu": {
+    "label": "Payables & Debt",
+    "icon": "file-clock",
+    "route": "/payables-debt",
+    "position": 30,
+    "permission": "liabilities.view",
+    "children": [
+      {
+        "label": "Overview",
+        "route": "/payables-debt",
+        "permission": "liabilities.view"
+      },
+      {
+        "label": "Invoices",
+        "route": "/payables-debt/invoices",
+        "permission": "liabilities.view"
+      },
+      {
+        "label": "Subscriptions",
+        "route": "/payables-debt/subscriptions",
+        "permission": "liabilities.view"
+      },
+      {
+        "label": "Loans",
+        "route": "/payables-debt/loans",
+        "permission": "liabilities.view"
+      },
+      {
+        "label": "Notification Settings",
+        "route": "/payables-debt/notifications",
+        "permission": "liabilities.notifications.config"
+      }
+    ]
+  },
+  "mail_hooks": [
+    {
+      "key": "hook_payable_notification",
+      "label": "Payables & Debt Alerts",
+      "description": "Dispatches email notifications for due-soon and overdue payables, subscriptions, and loan installments.",
+      "default": false
+    }
+  ],
+  "settings": {}
+}

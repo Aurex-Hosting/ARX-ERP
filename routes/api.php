@@ -16,8 +16,10 @@ use App\Core\Http\Controllers\Api\V1\NavigationController;
 use App\Core\Http\Controllers\Api\V1\NotificationController;
 use App\Core\Http\Controllers\Api\V1\RolePermissionController;
 use App\Core\Http\Controllers\Api\V1\SettingController;
+use App\Core\Http\Controllers\Api\V1\SystemController;
 use App\Core\Http\Controllers\Api\V1\SystemHealthController;
 use App\Core\Http\Controllers\Api\V1\ThemeController;
+use App\Core\Http\Controllers\Api\V1\ThemeDashboardWidgetController;
 use App\Core\Http\Controllers\Api\V1\UpdateController;
 use App\Core\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +47,9 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/auth/verify-email', [AuthActionController::class, 'verifyEmail'])->name('api.v1.auth.verify_email');
     Route::get('/auth/profile/avatar/{identifier?}', [AuthController::class, 'streamAvatar'])->name('api.v1.auth.profile.avatar');
     Route::get('/auth/profile/banner/{identifier?}', [AuthController::class, 'streamBanner'])->name('api.v1.auth.profile.banner');
+    Route::get('/modules/{slug}/icon', [ModuleController::class, 'icon'])->name('api.v1.modules.icon');
+    Route::get('/modules/{slug}/banner', [ModuleController::class, 'banner'])->name('api.v1.modules.banner');
+    Route::get('/modules/{slug}/readme', [ModuleController::class, 'readme'])->name('api.v1.modules.readme');
 
     // 2. Authenticated Endpoints (Users & AI Agents)
     Route::middleware('auth:sanctum')->group(function (): void {
@@ -88,6 +93,7 @@ Route::prefix('v1')->group(function (): void {
         // Settings (User/System read)
         Route::get('/settings/{key}', [SettingController::class, 'show'])->name('api.v1.settings.show');
         Route::get('/settings/group/{group}', [SettingController::class, 'getGroup'])->name('api.v1.settings.group');
+        Route::get('/theme/dashboard-widgets', [ThemeDashboardWidgetController::class, 'getDashboardWidgets'])->name('api.v1.theme.dashboard_widgets');
 
         // MCP (Model Context Protocol) Endpoints
         Route::get('/mcp/tools', [McpToolController::class, 'tools'])->name('api.v1.mcp.tools');
@@ -108,6 +114,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/modules/{slug}/disable', [ModuleController::class, 'disable'])->name('api.v1.admin.modules.disable');
             Route::delete('/modules/{slug}', [ModuleController::class, 'destroy'])->name('api.v1.admin.modules.destroy');
             Route::delete('/modules/{slug}/disk', [ModuleController::class, 'deleteFromDisk'])->name('api.v1.admin.modules.delete_disk');
+            Route::get('/modules/{slug}/readme', [ModuleController::class, 'readme'])->name('api.v1.admin.modules.readme');
 
             // Theme Management & General Settings
             Route::get('/themes', [ThemeController::class, 'index'])->name('api.v1.admin.themes.index');
@@ -116,6 +123,8 @@ Route::prefix('v1')->group(function (): void {
             Route::match(['put', 'post'], '/theme/general-settings', [SettingController::class, 'updateGeneralSettings'])->name('api.v1.admin.theme.general_settings.update');
             Route::post('/theme/general-settings/upload', [SettingController::class, 'uploadAsset'])->name('api.v1.admin.theme.general_settings.upload');
             Route::delete('/theme/general-settings/asset/{assetType}', [SettingController::class, 'deleteAsset'])->name('api.v1.admin.theme.general_settings.delete_asset');
+            Route::get('/theme/dashboard-widgets', [ThemeDashboardWidgetController::class, 'getDashboardWidgetsAdmin'])->name('api.v1.admin.theme.dashboard_widgets');
+            Route::match(['put', 'post'], '/theme/dashboard-widgets', [ThemeDashboardWidgetController::class, 'updateDashboardWidgets'])->name('api.v1.admin.theme.dashboard_widgets.update');
 
             // Backup & Disaster Recovery
             Route::get('/backups', [BackupController::class, 'index'])->name('api.v1.admin.backups.index');
@@ -209,6 +218,21 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/updates/check', [UpdateController::class, 'check'])->name('api.v1.admin.updates.check');
             Route::post('/updates/apply', [UpdateController::class, 'apply'])->name('api.v1.admin.updates.apply');
             Route::post('/updates/rollback', [UpdateController::class, 'rollback'])->name('api.v1.admin.updates.rollback');
+
+            // System Infrastructure, Processes & Cache Supervisor
+            Route::prefix('system')->group(function (): void {
+                Route::get('/overview', [SystemController::class, 'overview'])->name('api.v1.admin.system.overview');
+                Route::get('/processes', [SystemController::class, 'processes'])->name('api.v1.admin.system.processes');
+                Route::post('/processes/reload-octane', [SystemController::class, 'reloadOctane'])->name('api.v1.admin.system.processes.reload_octane');
+                Route::post('/processes/restart-workers', [SystemController::class, 'restartWorkers'])->name('api.v1.admin.system.processes.restart_workers');
+                Route::post('/processes/restart-all', [SystemController::class, 'restartAll'])->name('api.v1.admin.system.processes.restart_all');
+                Route::post('/processes/add-worker', [SystemController::class, 'addWorker'])->name('api.v1.admin.system.processes.add_worker');
+                Route::get('/cache', [SystemController::class, 'cacheStatus'])->name('api.v1.admin.system.cache.status');
+                Route::post('/cache/clear', [SystemController::class, 'clearCache'])->name('api.v1.admin.system.cache.clear');
+                Route::get('/maintenance', [SystemController::class, 'maintenanceStatus'])->name('api.v1.admin.system.maintenance.status');
+                Route::post('/maintenance/toggle', [SystemController::class, 'toggleMaintenance'])->name('api.v1.admin.system.maintenance.toggle');
+                Route::get('/extensions', [SystemController::class, 'extensions'])->name('api.v1.admin.system.extensions');
+            });
         });
     });
 });

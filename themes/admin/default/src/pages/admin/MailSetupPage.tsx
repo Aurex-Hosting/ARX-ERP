@@ -44,6 +44,7 @@ interface MailHooks {
   hook_verify_email_on_created: boolean;
   hook_account_status_change: boolean;
   hook_notify_broadcast: boolean;
+  hook_system_update_available?: boolean;
   custom_placeholders: Array<{
     key: string;
     value: string;
@@ -106,8 +107,16 @@ export const MailSetupPage: React.FC = () => {
     hook_verify_email_on_created: true,
     hook_account_status_change: true,
     hook_notify_broadcast: true,
+    hook_system_update_available: true,
     custom_placeholders: [],
   });
+  const [moduleHooks, setModuleHooks] = useState<Array<{
+    key: string;
+    label: string;
+    description: string;
+    module_name: string;
+    is_enabled: boolean;
+  }>>([]);
 
   // Templates State
   const [templates, setTemplates] = useState<MailTemplate[]>([]);
@@ -138,6 +147,7 @@ export const MailSetupPage: React.FC = () => {
 
       setConfig(configRes.data.config);
       setHooks(hooksRes.data.hooks);
+      setModuleHooks(hooksRes.data.module_hooks || []);
       const tmpls = (templatesRes.data.templates || []).filter(
         (t: MailTemplate) => t.key !== 'broadcast_notice'
       );
@@ -266,7 +276,11 @@ export const MailSetupPage: React.FC = () => {
     if (e) e.preventDefault();
     setIsSavingHooks(true);
     try {
-      const res = await api.put('/admin/mail/hooks', hooks);
+      const moduleHooksPayload = Object.fromEntries(moduleHooks.map((h) => [h.key, h.is_enabled]));
+      const res = await api.put('/admin/mail/hooks', {
+        ...hooks,
+        module_hooks: moduleHooksPayload,
+      });
       setHooks(res.data.hooks);
       showToast('success', 'Feature trigger hooks updated successfully.');
     } catch (err: any) {
@@ -382,7 +396,7 @@ export const MailSetupPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="w-full space-y-6 pb-16">
       {/* Toast Notification */}
       {notification && (
         <div
@@ -993,6 +1007,97 @@ export const MailSetupPage: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Hook 6: System Update Available */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex flex-col justify-between gap-4 shadow-xs">
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      System Update Available
+                    </h3>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={hooks.hook_system_update_available ?? true}
+                      onClick={() =>
+                        setHooks({
+                          ...hooks,
+                          hook_system_update_available: !(hooks.hook_system_update_available ?? true),
+                        })
+                      }
+                      className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                        (hooks.hook_system_update_available ?? true) ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                          (hooks.hook_system_update_available ?? true) ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                    Dispatches outbound email notifications to Super Administrators whenever a new verified ARX-ERP core release is discovered by the Update Checker.
+                  </p>
+                </div>
+                <div className="pt-2 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Update Checker</span>
+                  <span className={`font-semibold ${(hooks.hook_system_update_available ?? true) ? 'text-violet-400' : 'text-slate-400'}`}>
+                    {(hooks.hook_system_update_available ?? true) ? 'ACTIVE' : 'OFF'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Dynamic Module Trigger Hooks */}
+              {moduleHooks.map((mHook) => (
+                <div
+                  key={mHook.key}
+                  className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex flex-col justify-between gap-4 shadow-xs border border-violet-500/20"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                          {mHook.label}
+                        </h3>
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-500">
+                          {mHook.module_name.toUpperCase()}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={mHook.is_enabled}
+                        onClick={() =>
+                          setModuleHooks((prev) =>
+                            prev.map((h) =>
+                              h.key === mHook.key ? { ...h, is_enabled: !h.is_enabled } : h
+                            )
+                          )
+                        }
+                        className={`relative inline-flex h-6 w-11 p-0.5 shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${
+                          mHook.is_enabled ? 'bg-violet-600' : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                            mHook.is_enabled ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      {mHook.description}
+                    </p>
+                  </div>
+                  <div className="pt-2 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">{mHook.module_name}</span>
+                    <span className={`font-semibold ${mHook.is_enabled ? 'text-violet-400' : 'text-slate-400'}`}>
+                      {mHook.is_enabled ? 'ACTIVE' : 'OFF'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

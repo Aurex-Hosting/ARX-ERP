@@ -109,6 +109,21 @@ class ModuleMakeCommand extends Command
             $replacements
         );
 
+        // 5. README.md
+        $this->generateFileFromStub(
+            base_path('stubs/module/README.md.stub'),
+            "{$modulePath}/README.md",
+            $replacements
+        );
+
+        // 6. Assets (icon.png & banner.png)
+        if (File::exists(base_path('stubs/module/icon.png'))) {
+            File::copy(base_path('stubs/module/icon.png'), "{$modulePath}/icon.png");
+        }
+        if (File::exists(base_path('stubs/module/banner.png'))) {
+            File::copy(base_path('stubs/module/banner.png'), "{$modulePath}/banner.png");
+        }
+
         $this->info("Module [{$studlyName}] scaffolded successfully at modules/{$area}/{$studlyName}!");
         $this->line("Run: <comment>php artisan module:install {$slug}</comment> via API or CLI to activate.");
 

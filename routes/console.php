@@ -4,6 +4,7 @@ use App\Core\Services\BackupManager;
 use App\Core\Services\NotificationService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -22,3 +23,8 @@ Schedule::call(function (BackupManager $manager): void {
 })->everyMinute()->name('arx:auto-backup-runner');
 
 Schedule::command('updates:check')->twiceDaily(1, 13)->name('arx:system-updates-checker');
+
+Schedule::call(function (): void {
+    Cache::put('arx:scheduler_last_tick', time(), now()->addDays(7));
+    Cache::increment('arx:scheduler_ticks_count');
+})->everyMinute()->name('arx:scheduler-heartbeat');

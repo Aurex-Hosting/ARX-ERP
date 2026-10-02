@@ -598,8 +598,8 @@ Keep this file confidential and do not share it with anyone.
       const data: ProfileData = response.data.profile;
       setProfile(data);
       populateForm(data);
-      setAvatarUrl(data.avatar_url || null);
-      setBannerUrl(data.banner_url || null);
+      setAvatarUrl(data.avatar_url || authUser?.avatar_url || null);
+      setBannerUrl(data.banner_url || authUser?.banner_url || null);
     } catch (err: any) {
       setStatusMessage({
         type: 'error',
@@ -881,7 +881,7 @@ Keep this file confidential and do not share it with anyone.
   ];
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 w-full pb-12">
       {/* Hidden File Inputs */}
       <input
         ref={avatarInputRef}
@@ -976,12 +976,18 @@ Keep this file confidential and do not share it with anyone.
           <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm">
             {/* Cover Banner Area */}
             <div className="relative h-44 sm:h-56 md:h-64 w-full bg-slate-800 group overflow-hidden">
-              {bannerUrl ? (
+              {bannerUrl || authUser?.banner_url ? (
                 <img
-                  src={bannerUrl}
+                  src={bannerUrl || authUser?.banner_url || ''}
                   alt="Profile Banner"
                   className="w-full h-full object-cover"
-                  onError={() => setBannerUrl(null)}
+                  onError={() => {
+                    if (bannerUrl && authUser?.banner_url && bannerUrl !== authUser.banner_url) {
+                      setBannerUrl(authUser.banner_url);
+                    } else {
+                      setBannerUrl(null);
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-full h-full bg-slate-900 dark:bg-slate-950 flex items-center justify-center">
@@ -1001,10 +1007,10 @@ Keep this file confidential and do not share it with anyone.
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-white text-xs font-semibold hover:bg-white dark:hover:bg-slate-900 shadow-lg cursor-pointer backdrop-blur-sm transition-all disabled:opacity-50"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span>{bannerUrl ? 'Change Banner' : 'Upload Banner'}</span>
+                  <span>{bannerUrl || authUser?.banner_url ? 'Change Banner' : 'Upload Banner'}</span>
                 </button>
 
-                {bannerUrl && (
+                {(bannerUrl || authUser?.banner_url) && (
                   <button
                     type="button"
                     disabled={bannerLoading}
@@ -1029,12 +1035,18 @@ Keep this file confidential and do not share it with anyone.
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-14 sm:-mt-16 mb-4">
                 {/* Avatar with Hover Controls */}
                 <div className="relative group w-28 h-28 sm:w-32 sm:h-32 rounded-2xl ring-4 ring-white dark:ring-slate-900 bg-slate-900 overflow-hidden shadow-xl shrink-0">
-                  {avatarUrl ? (
+                  {avatarUrl || authUser?.avatar_url ? (
                     <img
-                      src={avatarUrl}
-                      alt={profile?.name || 'User Avatar'}
+                      src={avatarUrl || authUser?.avatar_url || ''}
+                      alt={profile?.name || authUser?.name || 'User Avatar'}
                       className="w-full h-full object-cover"
-                      onError={() => setAvatarUrl(null)}
+                      onError={() => {
+                        if (avatarUrl && authUser?.avatar_url && avatarUrl !== authUser.avatar_url) {
+                          setAvatarUrl(authUser.avatar_url);
+                        } else {
+                          setAvatarUrl(null);
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full bg-slate-800 dark:bg-slate-950 flex items-center justify-center text-slate-300 dark:text-slate-400 text-3xl font-bold">

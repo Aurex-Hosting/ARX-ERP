@@ -301,15 +301,55 @@ function downloadReleaseZip(string $url, string $targetPath, array $payload): vo
 // --------------------------------------------------------------------------
 // Environment File & File Helpers
 // --------------------------------------------------------------------------
+function initializeEnvFromExample(string $envPath, string $examplePath): void
+{
+    if (! file_exists($examplePath)) {
+        if (! file_exists($envPath)) {
+            touch($envPath);
+        }
+
+        return;
+    }
+
+    if (! file_exists($envPath) || filesize($envPath) === 0) {
+        copy($examplePath, $envPath);
+
+        return;
+    }
+
+    $existingEnv = (string) file_get_contents($envPath);
+    $existingValues = [];
+    if (preg_match_all('/^([A-Z0-9_]+)=(.*)$/m', $existingEnv, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $match) {
+            $existingValues[$match[1]] = trim($match[2], " \t\n\r\0\x0B\"'");
+        }
+    }
+
+    $template = (string) file_get_contents($examplePath);
+    foreach ($existingValues as $k => $v) {
+        if (preg_match("/^{$k}=.*/m", $template)) {
+            $formatted = ($v === '' || $v === 'null') ? $v : (str_contains($v, ' ') || str_contains($v, '#') ? '"'.addcslashes($v, '"\\').'"' : $v);
+            $template = preg_replace("/^{$k}=.*/m", "{$k}={$formatted}", $template);
+        }
+    }
+    file_put_contents($envPath, $template);
+}
+
 function updateEnvFile(string $filePath, array $values): void
 {
     if (! file_exists($filePath)) {
         touch($filePath);
     }
-    $content = file_get_contents($filePath);
+    $content = (string) file_get_contents($filePath);
     foreach ($values as $key => $val) {
         $cleanVal = (string) $val;
-        if (str_contains($cleanVal, ' ') || str_contains($cleanVal, '#') || str_contains($cleanVal, '"') || $cleanVal === '') {
+        if ($cleanVal === '') {
+            $formatted = '';
+        } elseif ($cleanVal === 'null') {
+            $formatted = 'null';
+        } elseif ($cleanVal === 'true' || $cleanVal === 'false' || is_numeric($cleanVal)) {
+            $formatted = $cleanVal;
+        } elseif (str_contains($cleanVal, ' ') || str_contains($cleanVal, '#') || str_contains($cleanVal, '"')) {
             $formatted = '"'.addcslashes($cleanVal, '"\\').'"';
         } else {
             $formatted = $cleanVal;
@@ -420,6 +460,21 @@ if (! empty($errors)) {
 }
 
 out(color('✓ System requirements verified (PHP '.PHP_VERSION.', required extensions active).', 'green'));
+
+if (PHP_OS_FAMILY !== 'Windows') {
+    $linuxOptExtensions = ['pcntl', 'posix', 'sockets'];
+    $missingLinux = [];
+    foreach ($linuxOptExtensions as $le) {
+        if (! extension_loaded($le)) {
+            $missingLinux[] = $le;
+        }
+    }
+    if (! empty($missingLinux)) {
+        out(color('  Notice: Recommended extensions for Laravel Octane / aaPanel ('.implode(', ', $missingLinux).') are not detected.', 'yellow'));
+        out(color('  On aaPanel: install them via App Store > PHP 8.4 > Extensions.', 'dim'));
+    }
+}
+
 out();
 
 // 2. Hardware Fingerprint
@@ -624,35 +679,8 @@ if (! file_exists($baseDir.'/vendor/autoload.php')) {
 // 6. Environment (.env) Setup
 out(color('5. Environment Configuration (.env)', 'bold'));
 
-if (! file_exists($envPath) || filesize($envPath) === 0) {
-    if (file_exists($baseDir.'/.env.example')) {
-        copy($baseDir.'/.env.example', $envPath);
-        out('  Created .env file from .env.example.');
-    } else {
-        touch($envPath);
-        out('  Created fresh .env file.');
-    }
-} elseif (file_exists($baseDir.'/.env.example')) {
-    // Populate any missing baseline keys from .env.example
-    $exampleLines = file($baseDir.'/.env.example', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    $currentContent = (string) file_get_contents($envPath);
-    $missingLines = [];
-    foreach ($exampleLines as $line) {
-        $trimmed = trim($line);
-        if ($trimmed === '' || str_starts_with($trimmed, '#')) {
-            continue;
-        }
-        if (preg_match('/^([A-Z0-9_]+)=/i', $trimmed, $matches)) {
-            $key = $matches[1];
-            if (! preg_match("/^{$key}=/m", $currentContent)) {
-                $missingLines[] = $trimmed;
-            }
-        }
-    }
-    if (! empty($missingLines)) {
-        file_put_contents($envPath, rtrim($currentContent)."\n".implode("\n", $missingLines)."\n");
-    }
-}
+initializeEnvFromExample($envPath, $baseDir.'/.env.example');
+out('  Initialized .env file from .env.example structure.');
 
 // Prompt for App URL
 $defaultUrl = 'http://localhost:8000';
@@ -667,11 +695,30 @@ if (file_exists($envPath)) {
 }
 $appUrl = prompt('Application URL', $defaultUrl);
 
+// Prompt for Timezone
+out('Timezone reference: '.color('https://www.php.net/manual/en/timezones.php', 'cyan'));
+$defaultTimezone = 'UTC';
+if (file_exists($envPath)) {
+    $c = file_get_contents($envPath);
+    if (preg_match('/^TIMEZONE=(.*)$/m', $c, $m)) {
+        $tzVal = trim($m[1], " \t\n\r\0\x0B\"'");
+        if (! empty($tzVal)) {
+            $defaultTimezone = $tzVal;
+        }
+    }
+}
+$timezone = prompt('Application Timezone (e.g. UTC, America/New_York, Asia/Kolkata)', $defaultTimezone);
+if (! in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
+    out(color("  Notice: '{$timezone}' is not a recognized timezone identifier. Defaulting to UTC.", 'yellow'));
+    $timezone = 'UTC';
+}
+
 $envUpdates = [
     'APP_NAME' => 'ARX-ERP Enterprise',
     'APP_ENV' => 'production',
     'APP_DEBUG' => 'false',
     'APP_URL' => $appUrl,
+    'TIMEZONE' => $timezone,
     'INSTALLATION_ID' => $installationId,
     'LICENSE_KEY' => $licenseKey,
     'LICENSE_APP_SECRET' => $appSecret ?: '',
@@ -759,8 +806,51 @@ while (! $dbConfigured) {
 }
 out();
 
-// 8. Key Generate, Migrations & Seeds
-out(color('7. Running Migrations & Seeding Core Data', 'bold'));
+// 8. Redis & Cache Configuration
+out(color('7. Redis & Cache Configuration', 'bold'));
+$configureRedis = confirm('Would you like to configure Redis (caching & background job queues)?', false);
+if ($configureRedis) {
+    $redisHost = prompt('Redis Host', '127.0.0.1');
+    $redisPort = prompt('Redis Port', '6379');
+    $redisPassInput = promptSecret('Redis Password (press Enter if none)');
+    $redisPassword = ($redisPassInput === '' || $redisPassInput === 'null') ? 'null' : $redisPassInput;
+    $defaultClient = extension_loaded('redis') ? 'phpredis' : 'predis';
+    $redisClient = prompt('Redis Client [phpredis/predis]', $defaultClient);
+
+    $useRedisCache = confirm('Use Redis as the primary application cache store?', true);
+    $useRedisQueue = confirm('Use Redis for background job queues?', true);
+
+    if (extension_loaded('redis')) {
+        try {
+            $r = new Redis;
+            $r->connect($redisHost, (int) $redisPort, 2.0);
+            if ($redisPassword !== 'null' && ! empty($redisPassword)) {
+                $r->auth($redisPassword);
+            }
+            $r->ping();
+            $r->close();
+            out(color('✓ Redis connection established successfully!', 'green'));
+        } catch (Throwable $e) {
+            out(color("  Warning: Could not connect to Redis ({$e->getMessage()}). Parameters will still be saved.", 'yellow'));
+        }
+    }
+
+    updateEnvFile($envPath, [
+        'REDIS_CLIENT' => $redisClient,
+        'REDIS_HOST' => $redisHost,
+        'REDIS_PORT' => $redisPort,
+        'REDIS_PASSWORD' => $redisPassword,
+        'CACHE_STORE' => $useRedisCache ? 'redis' : 'database',
+        'QUEUE_CONNECTION' => $useRedisQueue ? 'redis' : 'database',
+    ]);
+    out(color('✓ Redis configuration saved.', 'green'));
+} else {
+    out('  Using default database-backed cache and queues.');
+}
+out();
+
+// 9. Key Generate, Migrations & Seeds
+out(color('8. Running Migrations & Seeding Core Data', 'bold'));
 
 $php = PHP_BINARY;
 $artisan = $baseDir.'/artisan';
@@ -793,14 +883,30 @@ if (file_exists($artisan)) {
         }
     }
 
+    // Persist license into database settings table so config cache & DB sync never desync
+    out('Synchronizing enterprise license details to system store...');
+    $settingsScript = sprintf(
+        '\\Illuminate\\Support\\Facades\\DB::table(\'settings\')->updateOrInsert([\'key\' => \'system.license.key\'], [\'value\' => %s, \'group\' => \'system\', \'type\' => \'string\', \'created_at\' => now(), \'updated_at\' => now()]); '
+        .'\\Illuminate\\Support\\Facades\\DB::table(\'settings\')->updateOrInsert([\'key\' => \'system.installation_id\'], [\'value\' => %s, \'group\' => \'system\', \'type\' => \'string\', \'created_at\' => now(), \'updated_at\' => now()]); '
+        .(! empty($appSecret) ? '\\Illuminate\\Support\\Facades\\DB::table(\'settings\')->updateOrInsert([\'key\' => \'system.license.app_secret\'], [\'value\' => '.var_export($appSecret, true).', \'group\' => \'system\', \'type\' => \'string\', \'created_at\' => now(), \'updated_at\' => now()]); ' : '')
+        .(! empty($licenseData['expiresAt']) ? '\\Illuminate\\Support\\Facades\\DB::table(\'settings\')->updateOrInsert([\'key\' => \'system.license.expires_at\'], [\'value\' => '.var_export((string) $licenseData['expiresAt'], true).', \'group\' => \'system\', \'type\' => \'string\', \'created_at\' => now(), \'updated_at\' => now()]); ' : '')
+        .(! empty($signature) ? '\\Illuminate\\Support\\Facades\\DB::table(\'settings\')->updateOrInsert([\'key\' => \'system.license.signature\'], [\'value\' => '.var_export($signature, true).', \'group\' => \'system\', \'type\' => \'string\', \'created_at\' => now(), \'updated_at\' => now()]); ' : '')
+        .'\\Illuminate\\Support\\Facades\\DB::table(\'settings\')->updateOrInsert([\'key\' => \'system.license.activated_at\'], [\'value\' => now()->toIso8601String(), \'group\' => \'system\', \'type\' => \'string\', \'created_at\' => now(), \'updated_at\' => now()]);',
+        var_export($licenseKey, true),
+        var_export($installationId, true)
+    );
+    $tinkerCmd = "{$php} {$artisan} tinker --execute ".escapeshellarg($settingsScript);
+    @exec($tinkerCmd);
+    out(color('✓ System license synchronized with database.', 'green'));
+
     out(color('✓ Database schema and seed data prepared.', 'green'));
 } else {
     out(color('Notice: artisan script not found. Migrations skipped.', 'yellow'));
 }
 out();
 
-// 9. Super Admin Account Creation
-out(color('8. Super Administrator Account Setup', 'bold'));
+// 10. Super Admin Account Creation
+out(color('9. Super Administrator Account Setup', 'bold'));
 
 if (file_exists($artisan)) {
     $adminName = prompt('Super Administrator Full Name', 'Super Administrator');
@@ -830,7 +936,7 @@ if (file_exists($artisan)) {
 out();
 
 // 10. Storage Symlink & Cache Clear
-out(color('9. Finalizing Installation', 'bold'));
+out(color('10. Finalizing Core Framework Assets', 'bold'));
 
 if (file_exists($artisan)) {
     passthru("{$php} {$artisan} storage:link 2>/dev/null");
@@ -840,7 +946,132 @@ if (file_exists($artisan)) {
 out(color('✓ Storage link and system optimization cache updated.', 'green'));
 out();
 
-// 11. Completion Banner
+// 11. High-Performance Server Engine (Laravel Octane & RoadRunner Setup)
+out(color('11. High-Performance Server Engine (Laravel Octane / RoadRunner & aaPanel)', 'bold'));
+$useOctane = confirm('Configure Laravel Octane with RoadRunner (for aaPanel, high-traffic production & sub-millisecond latency)?', true);
+$octaneConfigured = false;
+$parsedPort = parse_url($appUrl, PHP_URL_PORT) ?: '8000';
+
+if ($useOctane && file_exists($artisan)) {
+    out('Configuring Laravel Octane with RoadRunner engine...');
+
+    // 1. Update .env for Octane
+    updateEnvFile($envPath, [
+        'OCTANE_SERVER' => 'roadrunner',
+        'OCTANE_HTTPS' => str_starts_with($appUrl, 'https://') ? 'true' : 'false',
+    ]);
+
+    // 2. Ensure RoadRunner binary is present
+    $rrBinary = $baseDir.'/rr';
+    $rrWinBinary = $baseDir.'/rr.exe';
+    $hasBinary = file_exists($rrBinary) || file_exists($rrWinBinary);
+
+    if (! $hasBinary) {
+        out('Ensuring RoadRunner binary is installed...');
+        $rrCli = $baseDir.'/vendor/bin/rr';
+        if (file_exists($rrCli)) {
+            @passthru("{$php} {$rrCli} get-binary -n", $rrCode);
+        } else {
+            @passthru("{$php} {$artisan} octane:install --server=roadrunner --no-interaction", $rrCode);
+        }
+    }
+
+    if (file_exists($rrBinary) && PHP_OS_FAMILY !== 'Windows') {
+        @chmod($rrBinary, 0755);
+    }
+
+    // 3. Update .rr.yaml with configured port & worker limits
+    $rrYamlPath = $baseDir.'/.rr.yaml';
+    if (file_exists($rrYamlPath)) {
+        $yamlContent = (string) file_get_contents($rrYamlPath);
+        $yamlContent = preg_replace("/address:\s*['\"][^'\"]+['\"]/", "address: '127.0.0.1:{$parsedPort}'", $yamlContent);
+        file_put_contents($rrYamlPath, $yamlContent);
+    }
+
+    // 4. Generate aaPanel Supervisor Manager configuration snippet
+    $supervisorConfig = <<<INI
+[program:arx-erp-octane]
+directory={$baseDir}
+command={$php} {$artisan} octane:start --server=roadrunner --workers=4 --port={$parsedPort}
+user=www
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile={$baseDir}/storage/logs/octane.log
+INI;
+    @file_put_contents($baseDir.'/storage/app/aapanel_supervisor_octane.ini', $supervisorConfig);
+
+    // 5. Generate aaPanel Supervisor Queue Worker configuration snippet
+    $workerSupervisorConfig = <<<INI
+[program:arx-erp-worker]
+directory={$baseDir}
+command={$php} {$artisan} queue:work --sleep=3 --tries=3 --max-time=3600
+user=www
+numprocs=2
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile={$baseDir}/storage/logs/worker.log
+INI;
+    @file_put_contents($baseDir.'/storage/app/aapanel_supervisor_worker.ini', $workerSupervisorConfig);
+
+    // 6. Generate Combined All-in-One aaPanel Supervisor configuration
+    $allSupervisorConfig = $supervisorConfig."\n\n".$workerSupervisorConfig;
+    @file_put_contents($baseDir.'/storage/app/aapanel_supervisor_all.ini', $allSupervisorConfig);
+
+    // 7. Generate aaPanel Nginx reverse proxy configuration snippet
+    $nginxConfig = <<<NGINX
+# aaPanel / Nginx Reverse Proxy for ARX-ERP (Laravel Octane RoadRunner)
+# Paste this into: aaPanel > Website > Settings > Reverse Proxy (or Nginx Configuration)
+location / {
+    proxy_pass http://127.0.0.1:{$parsedPort};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$http_host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "Upgrade";
+}
+NGINX;
+    @file_put_contents($baseDir.'/storage/app/aapanel_nginx_proxy.conf', $nginxConfig);
+
+    out(color('✓ Laravel Octane & RoadRunner configured successfully!', 'green'));
+    out('  aaPanel Full Daemon config:   '.color('storage/app/aapanel_supervisor_all.ini', 'cyan').' (Octane + Queue Worker)');
+    out('  aaPanel Nginx reverse proxy:  '.color('storage/app/aapanel_nginx_proxy.conf', 'cyan'));
+    $octaneConfigured = true;
+} else {
+    // Generate standalone Queue Worker configuration even in standard mode
+    $workerSupervisorConfig = <<<INI
+[program:arx-erp-worker]
+directory={$baseDir}
+command={$php} {$artisan} queue:work --sleep=3 --tries=3 --max-time=3600
+user=www
+numprocs=2
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile={$baseDir}/storage/logs/worker.log
+INI;
+    @file_put_contents($baseDir.'/storage/app/aapanel_supervisor_worker.ini', $workerSupervisorConfig);
+    out('  Using standard execution mode (PHP-FPM / CLI).');
+    out('  Queue Worker supervisor config saved to: '.color('storage/app/aapanel_supervisor_worker.ini', 'cyan'));
+}
+out();
+
+// 12. Optional systemd service installation on Linux
+$systemdInstalled = false;
+if (PHP_OS_FAMILY !== 'Windows' && is_dir('/etc/systemd/system') && file_exists($artisan)) {
+    out(color('12. Linux System Services (systemd: Web & Queue Worker)', 'bold'));
+    if (confirm('Would you like to install and enable ARX-ERP (Web Server & Queue Worker) as background systemd services?', false)) {
+        $serverFlag = $octaneConfigured ? '--server=octane' : '--server=serve';
+        passthru("{$php} {$artisan} app:service install {$serverFlag} --with-worker --port={$parsedPort}");
+        $systemdInstalled = true;
+    }
+    out();
+}
+
+// 13. Completion Banner
 out(color('===========================================================', 'green'));
 out(color('        ARX-ERP INSTALLATION COMPLETED SUCCESSFULLY!       ', 'bold'));
 out(color('===========================================================', 'green'));
@@ -851,6 +1082,17 @@ out('  Admin Email:      '.color($adminEmail ?? 'admin@arx-erp.local', 'cyan'));
 out('  Database Driver:  '.color(strtoupper($dbDriver), 'cyan'));
 out('  Installation ID:  '.color($installationId, 'cyan'));
 out('  License Status:   '.color('Activated & Verified', 'green'));
+out('  Server Engine:    '.color($octaneConfigured ? 'Laravel Octane (RoadRunner Engine)' : 'Standard (PHP-FPM / CLI)', 'cyan'));
+if ($systemdInstalled) {
+    out('  Web Service:      '.color('Active (systemctl status arx_erp)', 'green'));
+    out('  Queue Worker:     '.color('Active (systemctl status arx_erp_worker)', 'green'));
+}
+if ($octaneConfigured) {
+    out('  Octane CLI:       '.color("php artisan octane:start --server=roadrunner --port={$parsedPort}", 'cyan'));
+    out('  Zero-Downtime:    '.color('php artisan octane:reload', 'cyan'));
+    out('  aaPanel Deploy:   '.color('Import storage/app/aapanel_supervisor_all.ini into Supervisor Manager', 'yellow'));
+}
+out('  Worker CLI:       '.color('php artisan queue:work --sleep=3 --tries=3', 'cyan'));
 out();
 out(color('  Security Advice: For production environments, consider removing install.php', 'yellow'));
 out(color('  or restricting web access to this file.', 'yellow'));

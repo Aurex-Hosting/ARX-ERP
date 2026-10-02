@@ -10,6 +10,7 @@ use App\Core\Models\MailHookConfiguration;
 use App\Core\Models\MailTemplate;
 use App\Core\Models\Setting;
 use App\Models\User;
+use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -299,12 +300,26 @@ HTML;
         $this->applyDynamicTransport($config);
 
         try {
-            Mail::html($htmlBody, function ($message) use ($recipientEmail, $subject, $config): void {
-                $message->to($recipientEmail)->subject($subject);
-                if (! empty($config->from_address)) {
-                    $message->from($config->from_address, $config->from_name ?? config('app.name', 'ARX-ERP'));
+            $mailable = new class($subject, $htmlBody, $config) extends Mailable
+            {
+                public function __construct(
+                    public $emailSubject,
+                    public string $htmlContent,
+                    public $mailConfig
+                ) {
+                    $this->subject($this->emailSubject);
+                    if (! empty($this->mailConfig->from_address)) {
+                        $this->from($this->mailConfig->from_address, $this->mailConfig->from_name ?? config('app.name', 'ARX-ERP'));
+                    }
                 }
-            });
+
+                public function build()
+                {
+                    return $this->html($this->htmlContent);
+                }
+            };
+
+            Mail::to($recipientEmail)->send($mailable);
 
             return true;
         } catch (Throwable $e) {
@@ -509,5 +524,38 @@ HTML;
         $plain = strip_tags($html);
 
         return $this->sendRaw($user->email, $subject, $html, $plain);
+    }
+
+    /**
+     * Hook: Send System Update Available notification email to administrator.
+     *
+     * @param  array<string, mixed>  $updateDetails
+     */
+    public function sendSystemUpdateMail(User $user, array $updateDetails): bool
+    {
+        $config = MailConfiguration::instance();
+        $hooks = MailHookConfiguration::instance();
+
+        if (! $config->is_enabled || ! ($hooks->hook_system_update_available ?? true)) {
+            return false;
+        }
+
+        $version = (string) ($updateDetails['latest_version'] ?? 'Latest');
+        $packageName = (string) ($updateDetails['name'] ?? "ARX-ERP v{$version}");
+        $publishedAt = (string) ($updateDetails['published_at'] ?? now()->toFormattedDateString());
+        $notes = (string) ($updateDetails['notes'] ?? 'General stability, security, and feature updates.');
+        $baseUrl = rtrim(config('app.url', 'http://localhost:8000'), '/');
+        $updatesUrl = "{$baseUrl}/#updates";
+
+        $rendered = $this->renderTemplate('system_update_available', [
+            '{full_name}' => $user->name,
+            '{version}' => $version,
+            '{package_name}' => $packageName,
+            '{published_at}' => $publishedAt,
+            '{notes}' => $notes,
+            '{updates_url}' => $updatesUrl,
+        ]);
+
+        return $this->sendRaw($user->email, $rendered['subject'], $rendered['html'], $rendered['plain']);
     }
 }

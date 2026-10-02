@@ -18,11 +18,13 @@ import {
   ArrowDown,
   Globe,
   ShieldAlert,
+  LayoutDashboard,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, QuickLinkItem } from '../../context/ThemeContext';
 import { ThemeItem } from '../../types';
+import { DashboardWidgetCustomizer } from '../../components/themes/DashboardWidgetCustomizer';
 import logoDarkSvg from '../../assets/logo-dark.svg';
 import logoLightSvg from '../../assets/logo-light.svg';
 
@@ -45,13 +47,17 @@ export const ThemesPage: React.FC = () => {
   const canViewQuickLinks = hasPerm('themes.quick_links.view') || hasPerm('themes.quick_links.manage') || hasPerm('themes.manage');
   const canManageQuickLinks = hasPerm('themes.quick_links.manage') || hasPerm('themes.manage');
 
-  const hasAnyAccess = canViewCatalog || canViewGeneral || canViewQuickLinks;
+  const canViewDashboard = hasPerm('themes.dashboard.view') || hasPerm('themes.dashboard.manage') || hasPerm('themes.manage');
+  const canManageDashboard = hasPerm('themes.dashboard.manage') || hasPerm('themes.manage');
 
-  // Top Section Tabs: 'catalog' | 'general' | 'quick_links'
-  const [activeSection, setActiveSection] = useState<'catalog' | 'general' | 'quick_links'>(() => {
+  const hasAnyAccess = canViewCatalog || canViewGeneral || canViewQuickLinks || canViewDashboard;
+
+  // Top Section Tabs: 'catalog' | 'general' | 'quick_links' | 'dashboard'
+  const [activeSection, setActiveSection] = useState<'catalog' | 'general' | 'quick_links' | 'dashboard'>(() => {
     if (canViewCatalog) return 'catalog';
     if (canViewGeneral) return 'general';
     if (canViewQuickLinks) return 'quick_links';
+    if (canViewDashboard) return 'dashboard';
     return 'catalog';
   });
 
@@ -170,21 +176,35 @@ export const ThemesPage: React.FC = () => {
         setActiveSection('general');
       } else if (canViewQuickLinks) {
         setActiveSection('quick_links');
+      } else if (canViewDashboard) {
+        setActiveSection('dashboard');
       }
     } else if (activeSection === 'general' && !canViewGeneral) {
       if (canViewCatalog) {
         setActiveSection('catalog');
       } else if (canViewQuickLinks) {
         setActiveSection('quick_links');
+      } else if (canViewDashboard) {
+        setActiveSection('dashboard');
       }
     } else if (activeSection === 'quick_links' && !canViewQuickLinks) {
       if (canViewCatalog) {
         setActiveSection('catalog');
       } else if (canViewGeneral) {
         setActiveSection('general');
+      } else if (canViewDashboard) {
+        setActiveSection('dashboard');
+      }
+    } else if (activeSection === 'dashboard' && !canViewDashboard) {
+      if (canViewCatalog) {
+        setActiveSection('catalog');
+      } else if (canViewGeneral) {
+        setActiveSection('general');
+      } else if (canViewQuickLinks) {
+        setActiveSection('quick_links');
       }
     }
-  }, [canViewCatalog, canViewGeneral, canViewQuickLinks, activeSection]);
+  }, [canViewCatalog, canViewGeneral, canViewQuickLinks, canViewDashboard, activeSection]);
 
   useEffect(() => {
     if (canViewCatalog) {
@@ -557,7 +577,7 @@ export const ThemesPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="w-full space-y-6 animate-in fade-in duration-200">
       {/* Header & Section Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -612,6 +632,19 @@ export const ThemesPage: React.FC = () => {
               {hasAnyStagedQuickLinks && (
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
               )}
+            </button>
+          )}
+          {canViewDashboard && (
+            <button
+              onClick={() => setActiveSection('dashboard')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeSection === 'dashboard'
+                  ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Dashboard</span>
             </button>
           )}
         </div>
@@ -1690,6 +1723,13 @@ export const ThemesPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SECTION 4: DASHBOARD OVERVIEW WIDGET CUSTOMIZATION                        */}
+      {/* ========================================================================= */}
+      {activeSection === 'dashboard' && canViewDashboard && (
+        <DashboardWidgetCustomizer canManage={canManageDashboard} />
       )}
     </div>
   );

@@ -7,10 +7,15 @@ namespace App\Core\Http\Controllers\Api\V1;
 use App\Core\Models\MailConfiguration;
 use App\Core\Models\MailHookConfiguration;
 use App\Core\Models\MailTemplate;
+use App\Core\Models\Module;
+use App\Core\Services\HookManager;
 use App\Core\Services\MailService;
+use App\Core\Services\SettingsManager;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Modules\Dashboard\PayablesDebt\Models\PayableNotificationConfig;
 
 /**
  * Controller managing Mail Setup, SMTP Server credentials, Diagnostics,
@@ -173,10 +178,60 @@ class MailSetupController extends Controller
     /**
      * Get Feature Trigger Hooks and Custom Placeholders dictionary.
      */
-    public function getHooks(): JsonResponse
+    public function getHooks(HookManager $hookManager): JsonResponse
     {
         $hooks = MailHookConfiguration::instance();
         $config = MailConfiguration::instance();
+
+        // Discover dynamic hooks from enabled modules
+        $moduleHooks = [];
+        $enabledModules = Module::where('is_installed', true)
+            ->where('is_enabled', true)
+            ->get();
+
+        $savedDynamicStates = app(SettingsManager::class)->get('system.mail.module_hooks', []);
+        if (is_string($savedDynamicStates)) {
+            $savedDynamicStates = json_decode($savedDynamicStates, true) ?: [];
+        }
+
+        foreach ($enabledModules as $mod) {
+            $manifestHooks = $mod->manifest['mail_hooks'] ?? [];
+            foreach ($manifestHooks as $mHook) {
+                $key = $mHook['key'] ?? null;
+                if (! $key) {
+                    continue;
+                }
+                $moduleHooks[] = [
+                    'key' => $key,
+                    'label' => $mHook['label'] ?? Str::title(str_replace('_', ' ', $key)),
+                    'description' => $mHook['description'] ?? "Trigger hook for {$mod->name} module",
+                    'module_slug' => $mod->slug,
+                    'module_name' => $mod->name,
+                    'is_enabled' => (bool) ($savedDynamicStates[$key] ?? $mHook['default'] ?? false),
+                ];
+            }
+        }
+
+        // Also merge hooks registered via HookManager filter
+        $disabledSlugs = Module::where('is_enabled', false)->pluck('slug')->all();
+        $installedSlugs = $enabledModules->pluck('slug')->all();
+        $registeredFilterHooks = $hookManager->applyFilters('mail.hooks.available', []);
+        foreach ($registeredFilterHooks as $key => $hData) {
+            $hookModule = $hData['module'] ?? 'custom';
+            if (in_array($hookModule, $disabledSlugs, true) || ! in_array($hookModule, $installedSlugs, true)) {
+                continue;
+            }
+            if (! collect($moduleHooks)->contains('key', $key)) {
+                $moduleHooks[] = [
+                    'key' => $key,
+                    'label' => $hData['label'] ?? Str::title(str_replace('_', ' ', $key)),
+                    'description' => $hData['description'] ?? '',
+                    'module_slug' => $hookModule,
+                    'module_name' => $hData['module_name'] ?? 'Custom Module',
+                    'is_enabled' => (bool) ($savedDynamicStates[$key] ?? $hData['default'] ?? false),
+                ];
+            }
+        }
 
         return response()->json([
             'is_mail_enabled' => (bool) $config->is_enabled,
@@ -188,8 +243,10 @@ class MailSetupController extends Controller
                 'hook_verify_email_on_created' => (bool) $hooks->hook_verify_email_on_created,
                 'hook_account_status_change' => (bool) $hooks->hook_account_status_change,
                 'hook_notify_broadcast' => (bool) $hooks->hook_notify_broadcast,
+                'hook_system_update_available' => (bool) ($hooks->hook_system_update_available ?? true),
                 'custom_placeholders' => $hooks->custom_placeholders ?? [],
             ],
+            'module_hooks' => $moduleHooks,
         ]);
     }
 
@@ -204,6 +261,8 @@ class MailSetupController extends Controller
             'hook_verify_email_on_created' => ['required', 'boolean'],
             'hook_account_status_change' => ['required', 'boolean'],
             'hook_notify_broadcast' => ['required', 'boolean'],
+            'hook_system_update_available' => ['nullable', 'boolean'],
+            'module_hooks' => ['nullable', 'array'],
             'custom_placeholders' => ['nullable', 'array'],
             'custom_placeholders.*.key' => ['required_with:custom_placeholders', 'string', 'max:64'],
             'custom_placeholders.*.value' => ['nullable', 'string', 'max:255'],
@@ -217,8 +276,24 @@ class MailSetupController extends Controller
             'hook_verify_email_on_created' => $validated['hook_verify_email_on_created'],
             'hook_account_status_change' => $validated['hook_account_status_change'],
             'hook_notify_broadcast' => $validated['hook_notify_broadcast'],
+            'hook_system_update_available' => $validated['hook_system_update_available'] ?? true,
             'custom_placeholders' => $validated['custom_placeholders'] ?? [],
         ]);
+
+        if ($request->has('module_hooks')) {
+            $submittedModuleHooks = (array) $request->input('module_hooks', []);
+            app(SettingsManager::class)->set('system.mail.module_hooks', json_encode($submittedModuleHooks), 'system', 'json');
+
+            // If Payables & Debt alerts trigger was turned off in SMTP, disable enable_email on module config
+            if (isset($submittedModuleHooks['hook_payable_notification']) && ! $submittedModuleHooks['hook_payable_notification']) {
+                try {
+                    if (class_exists(PayableNotificationConfig::class)) {
+                        PayableNotificationConfig::instance()->update(['enable_email' => false]);
+                    }
+                } catch (\Throwable) {
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'Trigger hooks and placeholders updated successfully.',

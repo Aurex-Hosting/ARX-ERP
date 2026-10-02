@@ -2,11 +2,15 @@ export interface User {
   id: number;
   identifier?: string;
   name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   email: string;
   user_type: string;
   is_super_admin: boolean;
   avatar_url?: string | null;
   banner_url?: string | null;
+  created_at?: string;
+  active_sessions_count?: number;
   roles: string[];
   permissions: string[];
 }
@@ -79,6 +83,11 @@ export interface ModuleItem {
   is_enabled: boolean;
   installed_at: string | null;
   manifest: any;
+  icon?: string | null;
+  banner?: string | null;
+  icon_url?: string | null;
+  banner_url?: string | null;
+  has_readme?: boolean;
 }
 
 export interface ThemeItem {

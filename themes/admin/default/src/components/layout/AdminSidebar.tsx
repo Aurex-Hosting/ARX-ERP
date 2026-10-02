@@ -43,6 +43,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     if (isSuperAdmin) return true;
     switch (id) {
       case 'overview':
+      case 'system':
       case 'health':
         return true;
       case 'notify':
@@ -88,7 +89,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'audit-logs', label: 'Audit Trail', icon: FileText },
     { id: 'login-history', label: 'Login History', icon: History },
     { id: 'approvals', label: 'AI Approval Queue', icon: ShieldAlert },
-    { id: 'health', label: 'System Health', icon: Activity },
+    { id: 'system', label: 'System', icon: Activity },
   ];
 
   const visibleMenuItems = menuItems.filter((item) => hasItemAccess(item.id));

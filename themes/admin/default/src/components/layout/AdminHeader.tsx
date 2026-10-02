@@ -340,8 +340,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, onSel
       }
 
       const isLoginHistory =
-        actionBtn.action_tab === 'login-history' ||
         actionBtn.action_subtab === 'history' ||
+        actionBtn.action_tab === 'login-history' ||
         actionBtn.url === '/login-history' ||
         actionBtn.url === '/admin/login-history' ||
         item.category === 'login_alert';
@@ -350,7 +350,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, onSel
         setShowNotifMenu(false);
         sessionStorage.setItem('arx_target_profile_tab', 'history');
         window.location.hash = 'history';
-        onSelectTab?.('login-history');
+        onSelectTab?.('profile');
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('arx:navigate-profile-tab', { detail: 'history' }));
         }, 50);
@@ -394,7 +394,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ onToggleSidebar, onSel
       setShowNotifMenu(false);
       sessionStorage.setItem('arx_target_profile_tab', 'history');
       window.location.hash = 'history';
-      onSelectTab?.('login-history');
+      onSelectTab?.('profile');
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('arx:navigate-profile-tab', { detail: 'history' }));
       }, 50);
