@@ -32,3 +32,14 @@ Thumbs.db
 rr
 .rr.yaml
 rr.exe
+
+# Created and custom modules
+/Custom_modules_CC/
+/modules/admin/*
+!/modules/admin/.gitkeep
+/modules/dashboard/*
+!/modules/dashboard/.gitkeep
+!/modules/dashboard/PayablesDebt/
+/modules/shared/*
+!/modules/shared/.gitkeep
+

@@ -24,20 +24,43 @@ class ThemeDashboardWidgetController extends Controller
     ) {}
 
     /**
+     * Check if the Payables & Debt module is installed and enabled.
+     */
+    public static function isPayablesModuleActive(): bool
+    {
+        try {
+            $active = Module::where(function ($q) {
+                $q->whereIn('slug', ['payables-debt', 'PayablesDebt', 'payables_debt', 'payablesdebt'])
+                    ->orWhere('name', 'PayablesDebt')
+                    ->orWhere('name', 'like', '%Payables%');
+            })
+                ->where('is_enabled', true)
+                ->exists();
+
+            if ($active) {
+                return true;
+            }
+
+            // Fallback: check if the module directory exists
+            if (File::isDirectory(base_path('modules/dashboard/PayablesDebt')) || File::isDirectory(base_path('modules/dashboard/payables-debt'))) {
+                $mod = Module::whereIn('slug', ['payables-debt', 'PayablesDebt'])->first();
+
+                return $mod ? (bool) $mod->is_enabled : true;
+            }
+        } catch (\Throwable) {
+        }
+
+        return false;
+    }
+
+    /**
      * Default dashboard overview widgets configuration.
      *
      * @return array<string, mixed>
      */
     public static function getDefaultConfig(): array
     {
-        $payablesActive = false;
-        try {
-            $payablesActive = Module::where('slug', 'payables-debt')
-                ->where('is_installed', true)
-                ->where('is_enabled', true)
-                ->exists();
-        } catch (\Throwable) {
-        }
+        $payablesActive = self::isPayablesModuleActive();
 
         $layout = [
             'widget_profile',
@@ -257,6 +280,15 @@ class ThemeDashboardWidgetController extends Controller
         $newConfig['profile_widget']['size'] = '1/4';
         $newConfig['banner_widget']['size'] = $normalizeSize($newConfig['banner_widget']['size'] ?? null, '4/4');
         $newConfig['payables_widget']['size'] = $normalizeSize($newConfig['payables_widget']['size'] ?? null, '2/4');
+
+        // Synchronize layout with payables widget toggle
+        if (! empty($newConfig['payables_widget']['enabled'])) {
+            if (! in_array('widget_payables_calendar', $newConfig['layout'], true)) {
+                $newConfig['layout'][] = 'widget_payables_calendar';
+            }
+        } else {
+            $newConfig['layout'] = array_values(array_filter($newConfig['layout'], fn ($id) => $id !== 'widget_payables_calendar'));
+        }
         if (isset($newConfig['custom_widgets']) && is_array($newConfig['custom_widgets'])) {
             foreach ($newConfig['custom_widgets'] as &$cw) {
                 if (is_array($cw)) {
@@ -347,14 +379,7 @@ class ThemeDashboardWidgetController extends Controller
         );
         $bannerWidget['size'] = $normalizeSize($bannerWidget['size'] ?? null, '4/4');
 
-        $payablesActive = false;
-        try {
-            $payablesActive = Module::where('slug', 'payables-debt')
-                ->where('is_installed', true)
-                ->where('is_enabled', true)
-                ->exists();
-        } catch (\Throwable) {
-        }
+        $payablesActive = self::isPayablesModuleActive();
 
         $payablesWidget = array_merge(
             $defaults['payables_widget'],
@@ -369,6 +394,11 @@ class ThemeDashboardWidgetController extends Controller
         if (! $payablesActive) {
             $layout = array_values(array_filter($layout, fn ($id) => $id !== 'widget_payables_calendar'));
             $payablesWidget['enabled'] = false;
+        } else {
+            // When module is active and widget is enabled, guarantee widget is in layout!
+            if (! empty($payablesWidget['enabled']) && ! in_array('widget_payables_calendar', $layout, true)) {
+                $layout[] = 'widget_payables_calendar';
+            }
         }
 
         $customWidgets = is_array($stored['custom_widgets'] ?? null)

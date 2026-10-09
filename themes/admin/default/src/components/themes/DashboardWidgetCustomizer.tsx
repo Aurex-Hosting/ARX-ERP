@@ -1010,10 +1010,18 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                               banner_widget: { ...prev.banner_widget, enabled: !prev.banner_widget.enabled },
                             }));
                           } else if (widgetType === 'payables') {
-                            setConfig((prev) => ({
-                              ...prev,
-                              payables_widget: { ...prev.payables_widget, enabled: !prev.payables_widget.enabled },
-                            }));
+                            setConfig((prev) => {
+                              const newEnabled = !prev.payables_widget.enabled;
+                              let newLayout = [...prev.layout];
+                              if (newEnabled && !newLayout.includes('widget_payables_calendar')) {
+                                newLayout.push('widget_payables_calendar');
+                              }
+                              return {
+                                ...prev,
+                                layout: newLayout,
+                                payables_widget: { ...prev.payables_widget, enabled: newEnabled },
+                              };
+                            });
                           } else {
                             setConfig((prev) => ({
                               ...prev,
@@ -2704,13 +2712,21 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                 </div>
                 <div
                   onClick={() =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      payables_widget: {
-                        ...prev.payables_widget,
-                        enabled: !prev.payables_widget.enabled,
-                      },
-                    }))
+                    setConfig((prev) => {
+                      const newEnabled = !prev.payables_widget.enabled;
+                      let newLayout = [...prev.layout];
+                      if (newEnabled && !newLayout.includes('widget_payables_calendar')) {
+                        newLayout.push('widget_payables_calendar');
+                      }
+                      return {
+                        ...prev,
+                        layout: newLayout,
+                        payables_widget: {
+                          ...prev.payables_widget,
+                          enabled: newEnabled,
+                        },
+                      };
+                    })
                   }
                   className="flex items-center gap-2.5 cursor-pointer select-none"
                 >
