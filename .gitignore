@@ -34,6 +34,9 @@ rr
 rr.exe
 
 # Created and custom modules
+Custom_modules_CC
+Custom_modules_CC/
+/Custom_modules_CC
 /Custom_modules_CC/
 /modules/admin/*
 !/modules/admin/.gitkeep
