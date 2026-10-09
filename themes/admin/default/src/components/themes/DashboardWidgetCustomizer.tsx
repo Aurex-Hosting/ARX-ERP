@@ -35,6 +35,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignJustify,
   Type,
 } from 'lucide-react';
 import api from '../../services/api';
@@ -58,7 +59,8 @@ export interface BannerSlide {
   bg_image_url: string | null;
   overlay_opacity: number; // 0 to 1
   bg_blur: number; // 0 to 20
-  text_align?: 'left' | 'center' | 'right';
+  text_align?: 'left' | 'center' | 'right' | 'justify';
+  description_align?: 'left' | 'center' | 'right' | 'justify';
 
   // Title
   title: string;
@@ -214,6 +216,7 @@ const DEFAULT_CONFIG: DashboardWidgetsConfig = {
         subtitle_font_weight: 'semibold',
         description:
           'This is your clean baseline overview. As you install modules (CRM, Economy, Inventory, POS), their custom widgets and dashboards will automatically populate here.',
+        description_align: 'left',
         description_use_gradient: false,
         description_color: '#475569',
         description_gradient_from: '#334155',
@@ -1904,6 +1907,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                         subtitle_font_size: 'xs',
                         subtitle_font_weight: 'semibold',
                         description: 'Enter your announcement details here.',
+                        description_align: 'left',
                         description_use_gradient: false,
                         description_color: '#64748b',
                         description_gradient_from: '#334155',
@@ -2003,20 +2007,15 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                   <div className="space-y-6">
                     {/* Live Slide Preview */}
                     {(() => {
-                      const textAlign = currentSlide.text_align || 'left';
-                      const alignContainerClass =
-                        textAlign === 'center'
-                          ? 'items-center text-center'
-                          : textAlign === 'right'
-                          ? 'items-end text-right'
-                          : 'items-start text-left';
-
-                      const alignButtonsClass =
-                        textAlign === 'center'
-                          ? 'justify-center'
-                          : textAlign === 'right'
-                          ? 'justify-end'
-                          : 'justify-start';
+                      const descAlign = currentSlide.description_align || currentSlide.text_align || 'left';
+                      const descAlignClass =
+                        descAlign === 'center'
+                          ? 'text-center'
+                          : descAlign === 'right'
+                          ? 'text-right'
+                          : descAlign === 'justify'
+                          ? 'text-justify'
+                          : 'text-left';
 
                       return (
                         <div className="space-y-2">
@@ -2025,7 +2024,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                               Slide {activeSlideIndex + 1} Live Preview:
                             </label>
                             <span className="text-[11px] text-slate-400 capitalize">
-                              Align: {textAlign} • Full Width
+                              Full Width • Description Align: {descAlign}
                             </span>
                           </div>
                           <div
@@ -2046,8 +2045,8 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                               }}
                             />
 
-                            {/* Content: Full Width & Aligned */}
-                            <div className={`relative z-10 space-y-2.5 w-full max-w-none flex flex-col ${alignContainerClass}`}>
+                            {/* Content: Full Width */}
+                            <div className="relative z-10 space-y-2.5 w-full max-w-none flex flex-col items-start text-left">
                               {/* Subtitle / Badge */}
                               {currentSlide.subtitle && (
                                 <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-900/80 shadow-xs ${getSubtitleFontSizeClass(currentSlide.subtitle_font_size)}`}>
@@ -2090,9 +2089,9 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                                 </span>
                               </h2>
 
-                              {/* Description: Full Width */}
+                              {/* Description: Full Width with Dedicated Alignment */}
                               <p
-                                className={`w-full max-w-none leading-relaxed ${getDescFontSizeClass(currentSlide.description_font_size)}`}
+                                className={`w-full max-w-none leading-relaxed ${descAlignClass} ${getDescFontSizeClass(currentSlide.description_font_size)}`}
                               >
                                 <span
                                   style={resolveTextStyle(
@@ -2113,7 +2112,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
 
                               {/* Action Buttons */}
                               {currentSlide.buttons.length > 0 && (
-                                <div className={`flex flex-wrap items-center gap-2 pt-2 w-full ${alignButtonsClass}`}>
+                                <div className="flex flex-wrap items-center gap-2 pt-2 w-full justify-start">
                                   {currentSlide.buttons.map((btn) => (
                                     <button
                                       key={btn.id}
@@ -2146,56 +2145,8 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                       );
                     })()}
 
-                    {/* Layout, Alignment & Background Settings */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
-                      {/* Text Alignment */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                          Text Alignment
-                        </label>
-                        <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-300 dark:border-slate-700">
-                          <button
-                            type="button"
-                            onClick={() => updateCurrentSlide({ text_align: 'left' })}
-                            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                              (currentSlide.text_align || 'left') === 'left'
-                                ? 'bg-violet-600 text-white shadow-xs'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                            }`}
-                            title="Align text left"
-                          >
-                            <AlignLeft className="w-3.5 h-3.5" />
-                            <span>Left</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateCurrentSlide({ text_align: 'center' })}
-                            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                              currentSlide.text_align === 'center'
-                                ? 'bg-violet-600 text-white shadow-xs'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                            }`}
-                            title="Align text center"
-                          >
-                            <AlignCenter className="w-3.5 h-3.5" />
-                            <span>Center</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateCurrentSlide({ text_align: 'right' })}
-                            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                              currentSlide.text_align === 'right'
-                                ? 'bg-violet-600 text-white shadow-xs'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                            }`}
-                            title="Align text right"
-                          >
-                            <AlignRight className="w-3.5 h-3.5" />
-                            <span>Right</span>
-                          </button>
-                        </div>
-                      </div>
-
+                    {/* Background Settings: Image, Overlay, Blur */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
                       {/* Image Upload */}
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -2776,8 +2727,8 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                           />
                         </div>
 
-                        {/* Description Font Controls */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                        {/* Description Font & Alignment Controls */}
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
                           <div>
                             <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
                               Font Family
@@ -2825,6 +2776,61 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                                 </option>
                               ))}
                             </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                              Text Alignment
+                            </label>
+                            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-300 dark:border-slate-700 h-[34px]">
+                              <button
+                                type="button"
+                                onClick={() => updateCurrentSlide({ description_align: 'left', text_align: 'left' })}
+                                className={`flex-1 h-full rounded flex items-center justify-center transition-all cursor-pointer ${
+                                  (currentSlide.description_align || currentSlide.text_align || 'left') === 'left'
+                                    ? 'bg-violet-600 text-white shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                                title="Align Left"
+                              >
+                                <AlignLeft className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateCurrentSlide({ description_align: 'center', text_align: 'center' })}
+                                className={`flex-1 h-full rounded flex items-center justify-center transition-all cursor-pointer ${
+                                  (currentSlide.description_align || currentSlide.text_align) === 'center'
+                                    ? 'bg-violet-600 text-white shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                                title="Align Center"
+                              >
+                                <AlignCenter className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateCurrentSlide({ description_align: 'right', text_align: 'right' })}
+                                className={`flex-1 h-full rounded flex items-center justify-center transition-all cursor-pointer ${
+                                  (currentSlide.description_align || currentSlide.text_align) === 'right'
+                                    ? 'bg-violet-600 text-white shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                                title="Align Right"
+                              >
+                                <AlignRight className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateCurrentSlide({ description_align: 'justify', text_align: 'justify' as any })}
+                                className={`flex-1 h-full rounded flex items-center justify-center transition-all cursor-pointer ${
+                                  (currentSlide.description_align || currentSlide.text_align) === 'justify'
+                                    ? 'bg-violet-600 text-white shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                                title="Justify"
+                              >
+                                <AlignJustify className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
 

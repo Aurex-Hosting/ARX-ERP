@@ -15,7 +15,8 @@ export interface BannerSlide {
   bg_image_url: string | null;
   overlay_opacity: number;
   bg_blur: number;
-  text_align?: 'left' | 'center' | 'right';
+  text_align?: 'left' | 'center' | 'right' | 'justify';
+  description_align?: 'left' | 'center' | 'right' | 'justify';
 
   // Title
   title: string;
@@ -219,20 +220,15 @@ export const AnnouncementBannerWidget: React.FC<AnnouncementBannerWidgetProps> =
           'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95), rgba(237, 233, 254, 0.5))',
       };
 
-  const textAlign = activeSlide.text_align || 'left';
-  const alignContainerClass =
-    textAlign === 'center'
-      ? 'items-center text-center'
-      : textAlign === 'right'
-      ? 'items-end text-right'
-      : 'items-start text-left';
-
-  const alignButtonsClass =
-    textAlign === 'center'
-      ? 'justify-center'
-      : textAlign === 'right'
-      ? 'justify-end'
-      : 'justify-start';
+  const descAlign = activeSlide.description_align || activeSlide.text_align || 'left';
+  const descAlignClass =
+    descAlign === 'center'
+      ? 'text-center'
+      : descAlign === 'right'
+      ? 'text-right'
+      : descAlign === 'justify'
+      ? 'text-justify'
+      : 'text-left';
 
   return (
     <div
@@ -252,7 +248,7 @@ export const AnnouncementBannerWidget: React.FC<AnnouncementBannerWidgetProps> =
       />
 
       {/* Slide Content: Full Width */}
-      <div className={`relative z-10 space-y-3 w-full max-w-none flex flex-col ${alignContainerClass} animate-in fade-in duration-300`}>
+      <div className="relative z-10 space-y-3 w-full max-w-none flex flex-col items-start text-left animate-in fade-in duration-300">
         {/* Subtitle Badge */}
         {activeSlide.subtitle && (
           <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-xs ${getSubtitleFontSize(activeSlide.subtitle_font_size)}`}>
@@ -293,8 +289,8 @@ export const AnnouncementBannerWidget: React.FC<AnnouncementBannerWidgetProps> =
           </span>
         </h2>
 
-        {/* Description: Full Width */}
-        <p className={`w-full max-w-none leading-relaxed ${getDescFontSize(activeSlide.description_font_size)}`}>
+        {/* Description: Full Width with Dedicated Alignment */}
+        <p className={`w-full max-w-none leading-relaxed ${descAlignClass} ${getDescFontSize(activeSlide.description_font_size)}`}>
           <span
             style={buildTextStyle(
               activeSlide.description_use_gradient,
@@ -314,7 +310,7 @@ export const AnnouncementBannerWidget: React.FC<AnnouncementBannerWidgetProps> =
 
         {/* Action Buttons */}
         {activeSlide.buttons && activeSlide.buttons.length > 0 && (
-          <div className={`flex flex-wrap items-center gap-2.5 pt-2 w-full ${alignButtonsClass}`}>
+          <div className="flex flex-wrap items-center gap-2.5 pt-2 w-full justify-start">
             {activeSlide.buttons.map((btn) => (
               <button
                 key={btn.id}
