@@ -208,7 +208,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       />
 
       {/* Global Theme Toggle (Top Right) */}
-      <div className="absolute top-5 right-5 z-20">
+      <div className="auth-scale absolute top-5 right-5 z-20">
         <button
           type="button"
           onClick={toggleTheme}
@@ -230,7 +230,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       </div>
 
       {/* Liquid Glass Login Card */}
-      <div className="w-full max-w-md p-8 sm:p-10 rounded-2xl backdrop-blur-xl bg-white/60 dark:bg-white/10 border border-white/80 dark:border-white/20 shadow-2xl relative z-10 space-y-6 transition-all duration-300 hover:border-white dark:hover:border-white/30 text-slate-900 dark:text-white">
+      <div className="auth-scale w-full max-w-md p-8 sm:p-10 rounded-2xl backdrop-blur-xl bg-white/60 dark:bg-white/10 border border-white/80 dark:border-white/20 shadow-2xl relative z-10 space-y-6 transition-all duration-300 hover:border-white dark:hover:border-white/30 text-slate-900 dark:text-white">
         {/* Header */}
         <div className="space-y-3 text-center">
           <div className="flex justify-center">
@@ -521,7 +521,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       {/* Forgot Password Modal */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-white/20 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-slate-900 dark:text-white">
+          <div className="auth-scale backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-white/20 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-violet-600 dark:text-violet-400" />

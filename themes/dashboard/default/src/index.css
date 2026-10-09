@@ -32,6 +32,11 @@
     max-height: 125vh !important;
   }
 
+  /* Auth & login scale: 10% larger than 80% base scale (0.8 * 1.125 = 0.90) */
+  .auth-scale {
+    zoom: 1.125;
+  }
+
   /* Custom sleek scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
