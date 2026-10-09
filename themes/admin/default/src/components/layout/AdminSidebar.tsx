@@ -112,7 +112,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
       {/* Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 lg:w-64 bg-slate-50 dark:bg-slate-950 flex flex-col h-screen shrink-0 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 lg:w-64 bg-slate-50 dark:bg-slate-950 flex flex-col h-full shrink-0 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
