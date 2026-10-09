@@ -102,6 +102,62 @@ function confirm(string $question, bool $default = true): bool
     return in_array($input, ['y', 'yes', 'true', '1'], true);
 }
 
+function fixStoragePermissions(string $baseDir): void
+{
+    $dirs = [
+        $baseDir.'/storage/app/public',
+        $baseDir.'/storage/app/private',
+        $baseDir.'/storage/framework/cache/data',
+        $baseDir.'/storage/framework/sessions',
+        $baseDir.'/storage/framework/views',
+        $baseDir.'/storage/logs',
+        $baseDir.'/bootstrap/cache',
+    ];
+    foreach ($dirs as $dir) {
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+    }
+
+    if (PHP_OS_FAMILY !== 'Windows') {
+        foreach (['www', 'www-data', 'nginx', 'apache'] as $webUser) {
+            $check = @shell_exec("id -u {$webUser} 2>/dev/null");
+            if ($check !== null && trim($check) !== '') {
+                @shell_exec('chown -R '.escapeshellarg("{$webUser}:{$webUser}").' '.escapeshellarg($baseDir.'/storage').' '.escapeshellarg($baseDir.'/bootstrap/cache').' 2>/dev/null');
+                break;
+            }
+        }
+        @shell_exec('chmod -R 775 '.escapeshellarg($baseDir.'/storage').' '.escapeshellarg($baseDir.'/bootstrap/cache').' 2>/dev/null');
+    }
+}
+
+function linkThemeAssets(string $baseDir): void
+{
+    $dashboardAssets = $baseDir.'/themes/dashboard/default/dist/assets';
+    $publicAssets = $baseDir.'/public/assets';
+
+    if (is_dir($dashboardAssets) && ! file_exists($publicAssets)) {
+        if (PHP_OS_FAMILY !== 'Windows') {
+            @symlink($dashboardAssets, $publicAssets);
+        }
+    }
+
+    $adminAssets = $baseDir.'/themes/admin/default/dist/assets';
+    $publicAdminDir = $baseDir.'/public/admin';
+    $publicAdminAssets = $baseDir.'/public/admin/assets';
+
+    if (is_dir($adminAssets)) {
+        if (! is_dir($publicAdminDir)) {
+            @mkdir($publicAdminDir, 0755, true);
+        }
+        if (! file_exists($publicAdminAssets)) {
+            if (PHP_OS_FAMILY !== 'Windows') {
+                @symlink($adminAssets, $publicAdminAssets);
+            }
+        }
+    }
+}
+
 // --------------------------------------------------------------------------
 // Hardware Fingerprint Generator
 // --------------------------------------------------------------------------
@@ -428,8 +484,8 @@ out();
 out(color('1. Verifying System Requirements...', 'bold'));
 
 $errors = [];
-if (PHP_VERSION_ID < 80200) {
-    $errors[] = 'PHP 8.2 or higher is required. Detected: '.PHP_VERSION;
+if (PHP_VERSION_ID < 80400) {
+    $errors[] = 'PHP 8.4 or higher is required. Detected: '.PHP_VERSION;
 }
 
 $requiredExtensions = ['curl', 'openssl', 'zip', 'pdo', 'json', 'mbstring'];
@@ -453,6 +509,14 @@ if (! empty($errors)) {
         out(color("  ✕ {$err}", 'red'));
     }
     out();
+    if (PHP_VERSION_ID < 80400) {
+        out(color('If you are using aaPanel, cPanel, or have multiple PHP versions installed:', 'yellow'));
+        out('  1. On aaPanel: Set CLI PHP version to PHP 8.4 in Website > PHP-CLI, or run:');
+        out('     /www/server/php/84/bin/php install.php');
+        out('  2. Or update your system default CLI symlink:');
+        out('     sudo ln -sf /www/server/php/84/bin/php /usr/bin/php');
+        out();
+    }
     out(color('On Debian/Ubuntu/Kali, you can install the missing packages with:', 'yellow'));
     out('  sudo apt-get install -y php8.4-curl php8.4-zip php8.4-pgsql php8.4-mysql php8.4-mbstring php8.4-xml');
     out();
@@ -637,23 +701,8 @@ if ($skipDownload) {
 }
 out();
 
-// Ensure basic storage directory structure exists
-$storageDirs = [
-    $baseDir.'/storage/app/public',
-    $baseDir.'/storage/framework/cache/data',
-    $baseDir.'/storage/framework/sessions',
-    $baseDir.'/storage/framework/views',
-    $baseDir.'/storage/logs',
-    $baseDir.'/bootstrap/cache',
-];
-foreach ($storageDirs as $sDir) {
-    if (! is_dir($sDir)) {
-        @mkdir($sDir, 0775, true);
-    }
-}
-if (PHP_OS_FAMILY !== 'Windows') {
-    @shell_exec('chmod -R 775 '.escapeshellarg($baseDir.'/storage').' '.escapeshellarg($baseDir.'/bootstrap/cache').' 2>/dev/null');
-}
+// Ensure basic storage directory structure and permissions exist
+fixStoragePermissions($baseDir);
 
 // Persist installation id
 file_put_contents($baseDir.'/storage/app/.installation_id', $installationId);
@@ -816,6 +865,7 @@ if ($configureRedis) {
     $redisPassword = ($redisPassInput === '' || $redisPassInput === 'null') ? 'null' : $redisPassInput;
     $defaultClient = extension_loaded('redis') ? 'phpredis' : 'predis';
     $redisClient = prompt('Redis Client [phpredis/predis]', $defaultClient);
+    $redisPrefix = prompt('Redis Key Prefix (isolates ARX-ERP from other apps on same server)', 'arx_erp_');
 
     $useRedisCache = confirm('Use Redis as the primary application cache store?', true);
     $useRedisQueue = confirm('Use Redis for background job queues?', true);
@@ -840,6 +890,7 @@ if ($configureRedis) {
         'REDIS_HOST' => $redisHost,
         'REDIS_PORT' => $redisPort,
         'REDIS_PASSWORD' => $redisPassword,
+        'REDIS_PREFIX' => $redisPrefix,
         'CACHE_STORE' => $useRedisCache ? 'redis' : 'database',
         'QUEUE_CONNECTION' => $useRedisQueue ? 'redis' : 'database',
     ]);
@@ -868,8 +919,11 @@ if (file_exists($artisan)) {
     out('Executing database migrations...');
     passthru("{$php} {$artisan} migrate --force", $mCode);
     if ($mCode !== 0) {
-        out(color("Warning: Database migration exited with code {$mCode}.", 'yellow'));
-        if (! confirm('Would you like to continue anyway?', true)) {
+        out(color("Warning: Database migration exited with code {$mCode} (existing tables may be present).", 'yellow'));
+        if (confirm('Would you like to reset the database and perform a clean migration (migrate:fresh)?', true)) {
+            passthru("{$php} {$artisan} migrate:fresh --force", $mCode);
+        }
+        if ($mCode !== 0 && ! confirm('Would you like to continue anyway?', false)) {
             exit(1);
         }
     }
@@ -941,6 +995,8 @@ out(color('10. Finalizing Core Framework Assets', 'bold'));
 if (file_exists($artisan)) {
     passthru("{$php} {$artisan} storage:link 2>/dev/null");
     passthru("{$php} {$artisan} optimize:clear 2>/dev/null");
+    linkThemeAssets($baseDir);
+    fixStoragePermissions($baseDir);
 }
 
 out(color('✓ Storage link and system optimization cache updated.', 'green'));
@@ -1097,4 +1153,6 @@ out();
 out(color('  Security Advice: For production environments, consider removing install.php', 'yellow'));
 out(color('  or restricting web access to this file.', 'yellow'));
 out();
+linkThemeAssets($baseDir);
+fixStoragePermissions($baseDir);
 exit(0);
