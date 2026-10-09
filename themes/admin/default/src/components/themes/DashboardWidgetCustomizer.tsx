@@ -32,6 +32,10 @@ import {
   X,
   Monitor,
   Laptop,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Type,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -54,24 +58,47 @@ export interface BannerSlide {
   bg_image_url: string | null;
   overlay_opacity: number; // 0 to 1
   bg_blur: number; // 0 to 20
+  text_align?: 'left' | 'center' | 'right';
+
+  // Title
   title: string;
   title_use_gradient: boolean;
   title_color: string;
   title_gradient_from?: string;
+  title_gradient_via?: string;
   title_gradient_to?: string;
   title_gradient_dir?: string;
+  title_gradient_stops?: number;
+  title_font_family?: string;
+  title_font_size?: string;
+  title_font_weight?: string;
+
+  // Subtitle
   subtitle: string;
   subtitle_use_gradient: boolean;
   subtitle_color: string;
   subtitle_gradient_from?: string;
+  subtitle_gradient_via?: string;
   subtitle_gradient_to?: string;
   subtitle_gradient_dir?: string;
+  subtitle_gradient_stops?: number;
+  subtitle_font_family?: string;
+  subtitle_font_size?: string;
+  subtitle_font_weight?: string;
+
+  // Description
   description: string;
   description_use_gradient: boolean;
   description_color: string;
   description_gradient_from?: string;
+  description_gradient_via?: string;
   description_gradient_to?: string;
   description_gradient_dir?: string;
+  description_gradient_stops?: number;
+  description_font_family?: string;
+  description_font_size?: string;
+  description_font_weight?: string;
+
   buttons: BannerButton[];
 }
 
@@ -162,25 +189,41 @@ const DEFAULT_CONFIG: DashboardWidgetsConfig = {
         bg_image_url: null,
         overlay_opacity: 0.25,
         bg_blur: 0,
+        text_align: 'left',
         title: 'Welcome back',
         title_use_gradient: false,
         title_color: '#0f172a',
         title_gradient_from: '#7c3aed',
+        title_gradient_via: '#ec4899',
         title_gradient_to: '#4f46e5',
-        title_gradient_dir: 'to-r',
+        title_gradient_dir: 'to right',
+        title_gradient_stops: 2,
+        title_font_family: 'sans',
+        title_font_size: '3xl',
+        title_font_weight: 'extrabold',
         subtitle: 'Core Platform Ready',
         subtitle_use_gradient: false,
         subtitle_color: '#7c3aed',
         subtitle_gradient_from: '#7c3aed',
+        subtitle_gradient_via: '#8b5cf6',
         subtitle_gradient_to: '#ec4899',
-        subtitle_gradient_dir: 'to-r',
+        subtitle_gradient_dir: 'to right',
+        subtitle_gradient_stops: 2,
+        subtitle_font_family: 'sans',
+        subtitle_font_size: 'xs',
+        subtitle_font_weight: 'semibold',
         description:
           'This is your clean baseline overview. As you install modules (CRM, Economy, Inventory, POS), their custom widgets and dashboards will automatically populate here.',
         description_use_gradient: false,
         description_color: '#475569',
         description_gradient_from: '#334155',
+        description_gradient_via: '#475569',
         description_gradient_to: '#64748b',
-        description_gradient_dir: 'to-r',
+        description_gradient_dir: 'to right',
+        description_gradient_stops: 2,
+        description_font_family: 'sans',
+        description_font_size: 'sm',
+        description_font_weight: 'normal',
         buttons: [
           {
             id: 'btn_1',
@@ -258,6 +301,155 @@ const AVAILABLE_ICONS: Record<string, React.FC<{ className?: string }>> = {
   Server,
   Star,
   Terminal,
+};
+
+const FONT_FAMILIES = [
+  { value: 'sans', label: 'Sans-Serif (Default Plus Jakarta)' },
+  { value: 'serif', label: 'Serif (Georgia, Cambria, Elegant)' },
+  { value: 'mono', label: 'Monospace (Modern Code / Terminal)' },
+  { value: 'display', label: 'Display (System Modern UI)' },
+];
+
+const TITLE_FONT_SIZES = [
+  { value: 'xl', label: 'XL (24px)' },
+  { value: '2xl', label: '2XL (28px)' },
+  { value: '3xl', label: '3XL (36px - Default)' },
+  { value: '4xl', label: '4XL (44px)' },
+  { value: '5xl', label: '5XL (56px)' },
+];
+
+const SUBTITLE_FONT_SIZES = [
+  { value: 'xs', label: 'XS (11px - Default)' },
+  { value: 'sm', label: 'SM (13px)' },
+  { value: 'base', label: 'Base (15px)' },
+];
+
+const DESC_FONT_SIZES = [
+  { value: 'xs', label: 'XS (12px)' },
+  { value: 'sm', label: 'SM (14px - Default)' },
+  { value: 'base', label: 'Base (16px)' },
+  { value: 'lg', label: 'LG (18px)' },
+];
+
+const FONT_WEIGHTS = [
+  { value: 'normal', label: 'Normal (400)' },
+  { value: 'medium', label: 'Medium (500)' },
+  { value: 'semibold', label: 'Semibold (600)' },
+  { value: 'bold', label: 'Bold (700)' },
+  { value: 'extrabold', label: 'Extrabold (800)' },
+];
+
+const GRADIENT_DIRECTIONS = [
+  { value: 'to right', label: 'Left → Right' },
+  { value: 'to left', label: 'Right → Left' },
+  { value: 'to bottom', label: 'Top → Bottom' },
+  { value: 'to top', label: 'Bottom → Top' },
+  { value: '135deg', label: 'Diagonal ↘ (Top-Left to Bottom-Right)' },
+  { value: '45deg', label: 'Diagonal ↗ (Bottom-Left to Top-Right)' },
+];
+
+const resolveTextStyle = (
+  useGradient: boolean,
+  solidColor: string,
+  gradientDir?: string,
+  gradientFrom?: string,
+  gradientVia?: string,
+  gradientTo?: string,
+  gradientStops?: number,
+  fontFamily?: string,
+  fontWeight?: string
+): React.CSSProperties => {
+  const style: React.CSSProperties = {};
+
+  if (fontFamily === 'serif') {
+    style.fontFamily = 'Georgia, Cambria, "Times New Roman", serif';
+  } else if (fontFamily === 'mono') {
+    style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+  } else if (fontFamily === 'display') {
+    style.fontFamily = 'system-ui, -apple-system, sans-serif';
+  } else if (fontFamily === 'sans') {
+    style.fontFamily = 'var(--font-sans)';
+  }
+
+  if (fontWeight) {
+    const weightMap: Record<string, string | number> = {
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700,
+      extrabold: 800,
+    };
+    if (weightMap[fontWeight]) {
+      style.fontWeight = weightMap[fontWeight];
+    }
+  }
+
+  if (useGradient) {
+    const dir = gradientDir || 'to right';
+    const from = gradientFrom || '#7c3aed';
+    const to = gradientTo || '#4f46e5';
+    const stops = Number(gradientStops) || 2;
+    let grad: string;
+
+    if (stops === 3 && gradientVia) {
+      grad = `linear-gradient(${dir}, ${from}, ${gradientVia}, ${to})`;
+    } else {
+      grad = `linear-gradient(${dir}, ${from}, ${to})`;
+    }
+
+    style.backgroundImage = grad;
+    style.WebkitBackgroundClip = 'text';
+    style.backgroundClip = 'text';
+    style.WebkitTextFillColor = 'transparent';
+    style.color = 'transparent';
+    style.display = 'inline-block';
+  } else {
+    style.color = solidColor || '#0f172a';
+  }
+
+  return style;
+};
+
+const getTitleFontSizeClass = (size?: string): string => {
+  switch (size) {
+    case 'xl':
+      return 'text-xl md:text-2xl';
+    case '2xl':
+      return 'text-2xl md:text-3xl';
+    case '4xl':
+      return 'text-4xl md:text-5xl';
+    case '5xl':
+      return 'text-5xl md:text-6xl';
+    case '3xl':
+    default:
+      return 'text-2xl md:text-3xl lg:text-4xl';
+  }
+};
+
+const getSubtitleFontSizeClass = (size?: string): string => {
+  switch (size) {
+    case 'sm':
+      return 'text-xs sm:text-sm';
+    case 'base':
+      return 'text-sm sm:text-base';
+    case 'xs':
+    default:
+      return 'text-[11px] sm:text-xs';
+  }
+};
+
+const getDescFontSizeClass = (size?: string): string => {
+  switch (size) {
+    case 'xs':
+      return 'text-xs';
+    case 'base':
+      return 'text-base md:text-lg';
+    case 'lg':
+      return 'text-lg md:text-xl';
+    case 'sm':
+    default:
+      return 'text-sm md:text-base';
+  }
 };
 
 interface DashboardWidgetCustomizerProps {
@@ -1160,7 +1352,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
       {/* MODAL / DRAWER: PROFILE WIDGET CUSTOMIZER                                 */}
       {/* ========================================================================= */}
       {editingWidget === 'profile' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 animate-in fade-in duration-150">
           <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between p-5 border-b border-slate-200/60 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -1588,7 +1780,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
       {/* MODAL / DRAWER: ANNOUNCEMENT BANNER & SLIDESHOW CUSTOMIZER                */}
       {/* ========================================================================= */}
       {editingWidget === 'banner' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 animate-in fade-in duration-150">
           <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between p-5 border-b border-slate-200/60 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -1688,18 +1880,40 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                         bg_image_url: null,
                         overlay_opacity: 0.3,
                         bg_blur: 0,
+                        text_align: 'left',
                         title: 'New Announcement Slide',
                         title_use_gradient: true,
                         title_color: '#ffffff',
                         title_gradient_from: '#8b5cf6',
-                        title_gradient_to: '#ec4899',
-                        title_gradient_dir: 'to-r',
+                        title_gradient_via: '#ec4899',
+                        title_gradient_to: '#3b82f6',
+                        title_gradient_dir: 'to right',
+                        title_gradient_stops: 2,
+                        title_font_family: 'sans',
+                        title_font_size: '3xl',
+                        title_font_weight: 'extrabold',
                         subtitle: 'Update Notice',
                         subtitle_use_gradient: false,
                         subtitle_color: '#8b5cf6',
+                        subtitle_gradient_from: '#8b5cf6',
+                        subtitle_gradient_via: '#ec4899',
+                        subtitle_gradient_to: '#3b82f6',
+                        subtitle_gradient_dir: 'to right',
+                        subtitle_gradient_stops: 2,
+                        subtitle_font_family: 'sans',
+                        subtitle_font_size: 'xs',
+                        subtitle_font_weight: 'semibold',
                         description: 'Enter your announcement details here.',
                         description_use_gradient: false,
                         description_color: '#64748b',
+                        description_gradient_from: '#334155',
+                        description_gradient_via: '#475569',
+                        description_gradient_to: '#64748b',
+                        description_gradient_dir: 'to right',
+                        description_gradient_stops: 2,
+                        description_font_family: 'sans',
+                        description_font_size: 'sm',
+                        description_font_weight: 'normal',
                         buttons: [
                           {
                             id: `btn_${Date.now()}`,
@@ -1788,122 +2002,200 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                 return (
                   <div className="space-y-6">
                     {/* Live Slide Preview */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        Slide {activeSlideIndex + 1} Live Preview:
-                      </label>
-                      <div
-                        className="relative overflow-hidden rounded-3xl p-6 md:p-8 min-h-[220px] flex flex-col justify-center shadow-md bg-cover bg-center transition-all"
-                        style={{
-                          backgroundImage: activeBgUrl
-                            ? `url(${activeBgUrl})`
-                            : 'linear-gradient(to right, #ffffff, #f8fafc, #ede9fe)',
-                        }}
-                      >
-                        {/* Overlay & Blur Layer */}
-                        <div
-                          className="absolute inset-0 bg-black transition-opacity"
-                          style={{
-                            opacity: currentSlide.overlay_opacity,
-                            backdropFilter: currentSlide.bg_blur ? `blur(${currentSlide.bg_blur}px)` : undefined,
-                            WebkitBackdropFilter: currentSlide.bg_blur ? `blur(${currentSlide.bg_blur}px)` : undefined,
-                          }}
-                        />
+                    {(() => {
+                      const textAlign = currentSlide.text_align || 'left';
+                      const alignContainerClass =
+                        textAlign === 'center'
+                          ? 'items-center text-center'
+                          : textAlign === 'right'
+                          ? 'items-end text-right'
+                          : 'items-start text-left';
 
-                        {/* Content */}
-                        <div className="relative z-10 space-y-2 max-w-xl">
-                          {/* Subtitle / Badge */}
-                          {currentSlide.subtitle && (
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs">
-                              <span
-                                style={{
-                                  color: currentSlide.subtitle_use_gradient ? undefined : currentSlide.subtitle_color,
-                                  backgroundImage: currentSlide.subtitle_use_gradient
-                                    ? `linear-gradient(${currentSlide.subtitle_gradient_dir || 'to right'}, ${
-                                        currentSlide.subtitle_gradient_from || '#7c3aed'
-                                      }, ${currentSlide.subtitle_gradient_to || '#ec4899'})`
-                                    : undefined,
-                                }}
-                                className={
-                                  currentSlide.subtitle_use_gradient ? 'bg-clip-text text-transparent' : undefined
-                                }
+                      const alignButtonsClass =
+                        textAlign === 'center'
+                          ? 'justify-center'
+                          : textAlign === 'right'
+                          ? 'justify-end'
+                          : 'justify-start';
+
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              Slide {activeSlideIndex + 1} Live Preview:
+                            </label>
+                            <span className="text-[11px] text-slate-400 capitalize">
+                              Align: {textAlign} • Full Width
+                            </span>
+                          </div>
+                          <div
+                            className="relative overflow-hidden rounded-3xl p-6 md:p-8 min-h-[220px] w-full flex flex-col justify-center shadow-md bg-cover bg-center transition-all"
+                            style={{
+                              backgroundImage: activeBgUrl
+                                ? `url(${activeBgUrl})`
+                                : 'linear-gradient(to right, #ffffff, #f8fafc, #ede9fe)',
+                            }}
+                          >
+                            {/* Overlay & Blur Layer */}
+                            <div
+                              className="absolute inset-0 bg-black transition-opacity"
+                              style={{
+                                opacity: currentSlide.overlay_opacity,
+                                backdropFilter: currentSlide.bg_blur ? `blur(${currentSlide.bg_blur}px)` : undefined,
+                                WebkitBackdropFilter: currentSlide.bg_blur ? `blur(${currentSlide.bg_blur}px)` : undefined,
+                              }}
+                            />
+
+                            {/* Content: Full Width & Aligned */}
+                            <div className={`relative z-10 space-y-2.5 w-full max-w-none flex flex-col ${alignContainerClass}`}>
+                              {/* Subtitle / Badge */}
+                              {currentSlide.subtitle && (
+                                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/80 dark:bg-slate-900/80 shadow-xs ${getSubtitleFontSizeClass(currentSlide.subtitle_font_size)}`}>
+                                  <span
+                                    style={resolveTextStyle(
+                                      currentSlide.subtitle_use_gradient,
+                                      currentSlide.subtitle_color,
+                                      currentSlide.subtitle_gradient_dir,
+                                      currentSlide.subtitle_gradient_from,
+                                      currentSlide.subtitle_gradient_via,
+                                      currentSlide.subtitle_gradient_to,
+                                      currentSlide.subtitle_gradient_stops,
+                                      currentSlide.subtitle_font_family,
+                                      currentSlide.subtitle_font_weight
+                                    )}
+                                  >
+                                    {currentSlide.subtitle}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Title: Full Width */}
+                              <h2
+                                className={`w-full font-extrabold tracking-tight ${getTitleFontSizeClass(currentSlide.title_font_size)}`}
                               >
-                                {currentSlide.subtitle}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Title */}
-                          <h2
-                            className="text-2xl md:text-3xl font-extrabold tracking-tight"
-                            style={{
-                              color: currentSlide.title_use_gradient ? undefined : currentSlide.title_color,
-                              backgroundImage: currentSlide.title_use_gradient
-                                ? `linear-gradient(${currentSlide.title_gradient_dir || 'to right'}, ${
-                                    currentSlide.title_gradient_from || '#7c3aed'
-                                  }, ${currentSlide.title_gradient_to || '#4f46e5'})`
-                                : undefined,
-                            }}
-                          >
-                            <span className={currentSlide.title_use_gradient ? 'bg-clip-text text-transparent' : ''}>
-                              {currentSlide.title}
-                            </span>
-                          </h2>
-
-                          {/* Description */}
-                          <p
-                            className="text-xs md:text-sm leading-relaxed"
-                            style={{
-                              color: currentSlide.description_use_gradient ? undefined : currentSlide.description_color,
-                              backgroundImage: currentSlide.description_use_gradient
-                                ? `linear-gradient(${currentSlide.description_gradient_dir || 'to right'}, ${
-                                    currentSlide.description_gradient_from || '#334155'
-                                  }, ${currentSlide.description_gradient_to || '#64748b'})`
-                                : undefined,
-                            }}
-                          >
-                            <span
-                              className={currentSlide.description_use_gradient ? 'bg-clip-text text-transparent' : ''}
-                            >
-                              {currentSlide.description}
-                            </span>
-                          </p>
-
-                          {/* Action Buttons */}
-                          {currentSlide.buttons.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 pt-2">
-                              {currentSlide.buttons.map((btn) => (
-                                <button
-                                  key={btn.id}
-                                  type="button"
-                                  className={`px-4 py-2 text-xs font-semibold transition-all ${
-                                    btn.style === 'pill'
-                                      ? 'rounded-full'
-                                      : btn.style === 'glass'
-                                      ? 'rounded-xl backdrop-blur-md border border-white/30'
-                                      : btn.style === 'outline'
-                                      ? 'rounded-xl border'
-                                      : btn.style === 'glow'
-                                      ? 'rounded-xl shadow-lg shadow-violet-500/50'
-                                      : 'rounded-xl shadow-sm'
-                                  }`}
-                                  style={{
-                                    backgroundColor: btn.style === 'outline' ? 'transparent' : btn.bg_color,
-                                    borderColor: btn.style === 'outline' ? btn.bg_color : undefined,
-                                    color: btn.text_color,
-                                  }}
+                                <span
+                                  style={resolveTextStyle(
+                                    currentSlide.title_use_gradient,
+                                    currentSlide.title_color,
+                                    currentSlide.title_gradient_dir,
+                                    currentSlide.title_gradient_from,
+                                    currentSlide.title_gradient_via,
+                                    currentSlide.title_gradient_to,
+                                    currentSlide.title_gradient_stops,
+                                    currentSlide.title_font_family,
+                                    currentSlide.title_font_weight
+                                  )}
                                 >
-                                  {btn.text}
-                                </button>
-                              ))}
+                                  {currentSlide.title}
+                                </span>
+                              </h2>
+
+                              {/* Description: Full Width */}
+                              <p
+                                className={`w-full max-w-none leading-relaxed ${getDescFontSizeClass(currentSlide.description_font_size)}`}
+                              >
+                                <span
+                                  style={resolveTextStyle(
+                                    currentSlide.description_use_gradient,
+                                    currentSlide.description_color,
+                                    currentSlide.description_gradient_dir,
+                                    currentSlide.description_gradient_from,
+                                    currentSlide.description_gradient_via,
+                                    currentSlide.description_gradient_to,
+                                    currentSlide.description_gradient_stops,
+                                    currentSlide.description_font_family,
+                                    currentSlide.description_font_weight
+                                  )}
+                                >
+                                  {currentSlide.description}
+                                </span>
+                              </p>
+
+                              {/* Action Buttons */}
+                              {currentSlide.buttons.length > 0 && (
+                                <div className={`flex flex-wrap items-center gap-2 pt-2 w-full ${alignButtonsClass}`}>
+                                  {currentSlide.buttons.map((btn) => (
+                                    <button
+                                      key={btn.id}
+                                      type="button"
+                                      className={`px-4 py-2 text-xs font-semibold transition-all ${
+                                        btn.style === 'pill'
+                                          ? 'rounded-full'
+                                          : btn.style === 'glass'
+                                          ? 'rounded-xl backdrop-blur-md border border-white/30'
+                                          : btn.style === 'outline'
+                                          ? 'rounded-xl border'
+                                          : btn.style === 'glow'
+                                          ? 'rounded-xl shadow-lg shadow-violet-500/50'
+                                          : 'rounded-xl shadow-sm'
+                                      }`}
+                                      style={{
+                                        backgroundColor: btn.style === 'outline' ? 'transparent' : btn.bg_color,
+                                        borderColor: btn.style === 'outline' ? btn.bg_color : undefined,
+                                        color: btn.text_color,
+                                      }}
+                                    >
+                                      {btn.text}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Layout, Alignment & Background Settings */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+                      {/* Text Alignment */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Text Alignment
+                        </label>
+                        <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-300 dark:border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => updateCurrentSlide({ text_align: 'left' })}
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              (currentSlide.text_align || 'left') === 'left'
+                                ? 'bg-violet-600 text-white shadow-xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            }`}
+                            title="Align text left"
+                          >
+                            <AlignLeft className="w-3.5 h-3.5" />
+                            <span>Left</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateCurrentSlide({ text_align: 'center' })}
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              currentSlide.text_align === 'center'
+                                ? 'bg-violet-600 text-white shadow-xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            }`}
+                            title="Align text center"
+                          >
+                            <AlignCenter className="w-3.5 h-3.5" />
+                            <span>Center</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateCurrentSlide({ text_align: 'right' })}
+                            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              currentSlide.text_align === 'right'
+                                ? 'bg-violet-600 text-white shadow-xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            }`}
+                            title="Align text right"
+                          >
+                            <AlignRight className="w-3.5 h-3.5" />
+                            <span>Right</span>
+                          </button>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Background Settings: Image, Overlay, Blur */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
                       {/* Image Upload */}
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1928,7 +2220,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                               }}
                             />
                           </label>
-                          {(activeBgUrl) && (
+                          {activeBgUrl && (
                             <button
                               type="button"
                               onClick={() => {
@@ -1989,12 +2281,15 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                       </div>
                     </div>
 
-                    {/* Title & Typography Customization (Solid vs Gradient) */}
+                    {/* Title Typography & Colors */}
                     <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 space-y-4">
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                          Title Typography & Colors
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Type className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                            Title Typography & Colors
+                          </h4>
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] text-slate-500">Color Type:</span>
                           <button
@@ -2002,7 +2297,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                             onClick={() => updateCurrentSlide({ title_use_gradient: !currentSlide.title_use_gradient })}
                             className={`px-2.5 py-0.5 rounded text-xs font-semibold cursor-pointer transition-all ${
                               currentSlide.title_use_gradient
-                                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white'
+                                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-xs'
                                 : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}
                           >
@@ -2011,90 +2306,218 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Title Text */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                          Title Text
+                        </label>
+                        <input
+                          type="text"
+                          value={currentSlide.title}
+                          onChange={(e) => updateCurrentSlide({ title: e.target.value })}
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold"
+                        />
+                      </div>
+
+                      {/* Title Font Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            Font Family
+                          </label>
+                          <select
+                            value={currentSlide.title_font_family || 'sans'}
+                            onChange={(e) => updateCurrentSlide({ title_font_family: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                          >
+                            {FONT_FAMILIES.map((f) => (
+                              <option key={f.value} value={f.value}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            Font Size
+                          </label>
+                          <select
+                            value={currentSlide.title_font_size || '3xl'}
+                            onChange={(e) => updateCurrentSlide({ title_font_size: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                          >
+                            {TITLE_FONT_SIZES.map((s) => (
+                              <option key={s.value} value={s.value}>
+                                {s.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            Font Weight
+                          </label>
+                          <select
+                            value={currentSlide.title_font_weight || 'extrabold'}
+                            onChange={(e) => updateCurrentSlide({ title_font_weight: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                          >
+                            {FONT_WEIGHTS.map((w) => (
+                              <option key={w.value} value={w.value}>
+                                {w.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Title Color / Gradient */}
+                      {currentSlide.title_use_gradient ? (
+                        <div className="space-y-3 p-3 rounded-xl bg-violet-50/50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                Gradient Direction / Type
+                              </label>
+                              <select
+                                value={currentSlide.title_gradient_dir || 'to right'}
+                                onChange={(e) => updateCurrentSlide({ title_gradient_dir: e.target.value })}
+                                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                              >
+                                {GRADIENT_DIRECTIONS.map((d) => (
+                                  <option key={d.value} value={d.value}>
+                                    {d.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                Gradient Color Stops (Min 2, Up to 3)
+                              </label>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateCurrentSlide({ title_gradient_stops: 2 })}
+                                  className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                    (currentSlide.title_gradient_stops || 2) === 2
+                                      ? 'bg-violet-600 text-white shadow-xs'
+                                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                                  }`}
+                                >
+                                  2 Colors
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateCurrentSlide({ title_gradient_stops: 3 })}
+                                  className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                    currentSlide.title_gradient_stops === 3
+                                      ? 'bg-violet-600 text-white shadow-xs'
+                                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                                  }`}
+                                >
+                                  3 Colors
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className={`grid grid-cols-1 ${(currentSlide.title_gradient_stops || 2) === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                Stop 1: From
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={currentSlide.title_gradient_from || '#7c3aed'}
+                                  onChange={(e) => updateCurrentSlide({ title_gradient_from: e.target.value })}
+                                  className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                />
+                                <input
+                                  type="text"
+                                  value={currentSlide.title_gradient_from || '#7c3aed'}
+                                  onChange={(e) => updateCurrentSlide({ title_gradient_from: e.target.value })}
+                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                />
+                              </div>
+                            </div>
+
+                            {(currentSlide.title_gradient_stops || 2) === 3 && (
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  Stop 2: Via (Middle)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={currentSlide.title_gradient_via || '#ec4899'}
+                                    onChange={(e) => updateCurrentSlide({ title_gradient_via: e.target.value })}
+                                    className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={currentSlide.title_gradient_via || '#ec4899'}
+                                    onChange={(e) => updateCurrentSlide({ title_gradient_via: e.target.value })}
+                                    className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                {(currentSlide.title_gradient_stops || 2) === 3 ? 'Stop 3: To' : 'Stop 2: To'}
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={currentSlide.title_gradient_to || '#4f46e5'}
+                                  onChange={(e) => updateCurrentSlide({ title_gradient_to: e.target.value })}
+                                  className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                />
+                                <input
+                                  type="text"
+                                  value={currentSlide.title_gradient_to || '#4f46e5'}
+                                  onChange={(e) => updateCurrentSlide({ title_gradient_to: e.target.value })}
+                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
                         <div>
                           <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                            Title Text
+                            Solid Title Color
                           </label>
-                          <input
-                            type="text"
-                            value={currentSlide.title}
-                            onChange={(e) => updateCurrentSlide({ title: e.target.value })}
-                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold"
-                          />
+                          <div className="flex items-center gap-2 max-w-xs">
+                            <input
+                              type="color"
+                              value={currentSlide.title_color || '#0f172a'}
+                              onChange={(e) => updateCurrentSlide({ title_color: e.target.value })}
+                              className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={currentSlide.title_color || '#0f172a'}
+                              onChange={(e) => updateCurrentSlide({ title_color: e.target.value })}
+                              className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                            />
+                          </div>
                         </div>
-
-                        {currentSlide.title_use_gradient ? (
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                Gradient From
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={currentSlide.title_gradient_from || '#7c3aed'}
-                                  onChange={(e) => updateCurrentSlide({ title_gradient_from: e.target.value })}
-                                  className="w-8 h-8 rounded border-none cursor-pointer"
-                                />
-                                <input
-                                  type="text"
-                                  value={currentSlide.title_gradient_from || '#7c3aed'}
-                                  onChange={(e) => updateCurrentSlide({ title_gradient_from: e.target.value })}
-                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                Gradient To
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={currentSlide.title_gradient_to || '#4f46e5'}
-                                  onChange={(e) => updateCurrentSlide({ title_gradient_to: e.target.value })}
-                                  className="w-8 h-8 rounded border-none cursor-pointer"
-                                />
-                                <input
-                                  type="text"
-                                  value={currentSlide.title_gradient_to || '#4f46e5'}
-                                  onChange={(e) => updateCurrentSlide({ title_gradient_to: e.target.value })}
-                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                              Solid Title Color
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={currentSlide.title_color}
-                                onChange={(e) => updateCurrentSlide({ title_color: e.target.value })}
-                                className="w-8 h-8 rounded border-none cursor-pointer"
-                              />
-                              <input
-                                type="text"
-                                value={currentSlide.title_color}
-                                onChange={(e) => updateCurrentSlide({ title_color: e.target.value })}
-                                className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     {/* Subtitle & Typography Customization */}
                     <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 space-y-4">
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                          Subtitle Badge Typography & Colors
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Type className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                            Subtitle Badge Typography & Colors
+                          </h4>
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] text-slate-500">Color Type:</span>
                           <button
@@ -2102,7 +2525,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                             onClick={() => updateCurrentSlide({ subtitle_use_gradient: !currentSlide.subtitle_use_gradient })}
                             className={`px-2.5 py-0.5 rounded text-xs font-semibold cursor-pointer transition-all ${
                               currentSlide.subtitle_use_gradient
-                                ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white'
+                                ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-xs'
                                 : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}
                           >
@@ -2111,90 +2534,218 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Subtitle Text */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                          Subtitle Text
+                        </label>
+                        <input
+                          type="text"
+                          value={currentSlide.subtitle}
+                          onChange={(e) => updateCurrentSlide({ subtitle: e.target.value })}
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Subtitle Font Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            Font Family
+                          </label>
+                          <select
+                            value={currentSlide.subtitle_font_family || 'sans'}
+                            onChange={(e) => updateCurrentSlide({ subtitle_font_family: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                          >
+                            {FONT_FAMILIES.map((f) => (
+                              <option key={f.value} value={f.value}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            Font Size
+                          </label>
+                          <select
+                            value={currentSlide.subtitle_font_size || 'xs'}
+                            onChange={(e) => updateCurrentSlide({ subtitle_font_size: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                          >
+                            {SUBTITLE_FONT_SIZES.map((s) => (
+                              <option key={s.value} value={s.value}>
+                                {s.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            Font Weight
+                          </label>
+                          <select
+                            value={currentSlide.subtitle_font_weight || 'semibold'}
+                            onChange={(e) => updateCurrentSlide({ subtitle_font_weight: e.target.value })}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                          >
+                            {FONT_WEIGHTS.map((w) => (
+                              <option key={w.value} value={w.value}>
+                                {w.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Subtitle Color / Gradient */}
+                      {currentSlide.subtitle_use_gradient ? (
+                        <div className="space-y-3 p-3 rounded-xl bg-violet-50/50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                Gradient Direction / Type
+                              </label>
+                              <select
+                                value={currentSlide.subtitle_gradient_dir || 'to right'}
+                                onChange={(e) => updateCurrentSlide({ subtitle_gradient_dir: e.target.value })}
+                                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                              >
+                                {GRADIENT_DIRECTIONS.map((d) => (
+                                  <option key={d.value} value={d.value}>
+                                    {d.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                Gradient Color Stops (Min 2, Up to 3)
+                              </label>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateCurrentSlide({ subtitle_gradient_stops: 2 })}
+                                  className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                    (currentSlide.subtitle_gradient_stops || 2) === 2
+                                      ? 'bg-violet-600 text-white shadow-xs'
+                                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                                  }`}
+                                >
+                                  2 Colors
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateCurrentSlide({ subtitle_gradient_stops: 3 })}
+                                  className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                    currentSlide.subtitle_gradient_stops === 3
+                                      ? 'bg-violet-600 text-white shadow-xs'
+                                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                                  }`}
+                                >
+                                  3 Colors
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className={`grid grid-cols-1 ${(currentSlide.subtitle_gradient_stops || 2) === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                Stop 1: From
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={currentSlide.subtitle_gradient_from || '#7c3aed'}
+                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_from: e.target.value })}
+                                  className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                />
+                                <input
+                                  type="text"
+                                  value={currentSlide.subtitle_gradient_from || '#7c3aed'}
+                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_from: e.target.value })}
+                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                />
+                              </div>
+                            </div>
+
+                            {(currentSlide.subtitle_gradient_stops || 2) === 3 && (
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  Stop 2: Via (Middle)
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={currentSlide.subtitle_gradient_via || '#ec4899'}
+                                    onChange={(e) => updateCurrentSlide({ subtitle_gradient_via: e.target.value })}
+                                    className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={currentSlide.subtitle_gradient_via || '#ec4899'}
+                                    onChange={(e) => updateCurrentSlide({ subtitle_gradient_via: e.target.value })}
+                                    className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                {(currentSlide.subtitle_gradient_stops || 2) === 3 ? 'Stop 3: To' : 'Stop 2: To'}
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={currentSlide.subtitle_gradient_to || '#ec4899'}
+                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_to: e.target.value })}
+                                  className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                />
+                                <input
+                                  type="text"
+                                  value={currentSlide.subtitle_gradient_to || '#ec4899'}
+                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_to: e.target.value })}
+                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
                         <div>
                           <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                            Subtitle Text
+                            Solid Subtitle Color
                           </label>
-                          <input
-                            type="text"
-                            value={currentSlide.subtitle}
-                            onChange={(e) => updateCurrentSlide({ subtitle: e.target.value })}
-                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                          />
+                          <div className="flex items-center gap-2 max-w-xs">
+                            <input
+                              type="color"
+                              value={currentSlide.subtitle_color || '#7c3aed'}
+                              onChange={(e) => updateCurrentSlide({ subtitle_color: e.target.value })}
+                              className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={currentSlide.subtitle_color || '#7c3aed'}
+                              onChange={(e) => updateCurrentSlide({ subtitle_color: e.target.value })}
+                              className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                            />
+                          </div>
                         </div>
-
-                        {currentSlide.subtitle_use_gradient ? (
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                Gradient From
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={currentSlide.subtitle_gradient_from || '#7c3aed'}
-                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_from: e.target.value })}
-                                  className="w-8 h-8 rounded border-none cursor-pointer"
-                                />
-                                <input
-                                  type="text"
-                                  value={currentSlide.subtitle_gradient_from || '#7c3aed'}
-                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_from: e.target.value })}
-                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                Gradient To
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={currentSlide.subtitle_gradient_to || '#ec4899'}
-                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_to: e.target.value })}
-                                  className="w-8 h-8 rounded border-none cursor-pointer"
-                                />
-                                <input
-                                  type="text"
-                                  value={currentSlide.subtitle_gradient_to || '#ec4899'}
-                                  onChange={(e) => updateCurrentSlide({ subtitle_gradient_to: e.target.value })}
-                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                              Solid Color
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={currentSlide.subtitle_color}
-                                onChange={(e) => updateCurrentSlide({ subtitle_color: e.target.value })}
-                                className="w-8 h-8 rounded border-none cursor-pointer"
-                              />
-                              <input
-                                type="text"
-                                value={currentSlide.subtitle_color}
-                                onChange={(e) => updateCurrentSlide({ subtitle_color: e.target.value })}
-                                className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     {/* Description Customization */}
                     <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 space-y-4">
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                          Description Typography & Colors
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Type className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                            Description Typography & Colors
+                          </h4>
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] text-slate-500">Color Type:</span>
                           <button
@@ -2202,7 +2753,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                             onClick={() => updateCurrentSlide({ description_use_gradient: !currentSlide.description_use_gradient })}
                             className={`px-2.5 py-0.5 rounded text-xs font-semibold cursor-pointer transition-all ${
                               currentSlide.description_use_gradient
-                                ? 'bg-gradient-to-r from-slate-600 to-slate-400 text-white'
+                                ? 'bg-gradient-to-r from-slate-600 to-slate-400 text-white shadow-xs'
                                 : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}
                           >
@@ -2211,6 +2762,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                         </div>
                       </div>
 
+                      {/* Description Text */}
                       <div className="space-y-3">
                         <div>
                           <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
@@ -2224,64 +2776,190 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                           />
                         </div>
 
+                        {/* Description Font Controls */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                              Font Family
+                            </label>
+                            <select
+                              value={currentSlide.description_font_family || 'sans'}
+                              onChange={(e) => updateCurrentSlide({ description_font_family: e.target.value })}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                            >
+                              {FONT_FAMILIES.map((f) => (
+                                <option key={f.value} value={f.value}>
+                                  {f.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                              Font Size
+                            </label>
+                            <select
+                              value={currentSlide.description_font_size || 'sm'}
+                              onChange={(e) => updateCurrentSlide({ description_font_size: e.target.value })}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                            >
+                              {DESC_FONT_SIZES.map((s) => (
+                                <option key={s.value} value={s.value}>
+                                  {s.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                              Font Weight
+                            </label>
+                            <select
+                              value={currentSlide.description_font_weight || 'normal'}
+                              onChange={(e) => updateCurrentSlide({ description_font_weight: e.target.value })}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                            >
+                              {FONT_WEIGHTS.map((w) => (
+                                <option key={w.value} value={w.value}>
+                                  {w.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Description Color / Gradient */}
                         {currentSlide.description_use_gradient ? (
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                Gradient From
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={currentSlide.description_gradient_from || '#334155'}
-                                  onChange={(e) => updateCurrentSlide({ description_gradient_from: e.target.value })}
-                                  className="w-8 h-8 rounded border-none cursor-pointer"
-                                />
-                                <input
-                                  type="text"
-                                  value={currentSlide.description_gradient_from || '#334155'}
-                                  onChange={(e) => updateCurrentSlide({ description_gradient_from: e.target.value })}
-                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                                />
+                          <div className="space-y-3 p-3 rounded-xl bg-violet-50/50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/40">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  Gradient Direction / Type
+                                </label>
+                                <select
+                                  value={currentSlide.description_gradient_dir || 'to right'}
+                                  onChange={(e) => updateCurrentSlide({ description_gradient_dir: e.target.value })}
+                                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                                >
+                                  {GRADIENT_DIRECTIONS.map((d) => (
+                                    <option key={d.value} value={d.value}>
+                                      {d.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  Gradient Color Stops (Min 2, Up to 3)
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCurrentSlide({ description_gradient_stops: 2 })}
+                                    className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                      (currentSlide.description_gradient_stops || 2) === 2
+                                        ? 'bg-violet-600 text-white shadow-xs'
+                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                                    }`}
+                                  >
+                                    2 Colors
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateCurrentSlide({ description_gradient_stops: 3 })}
+                                    className={`flex-1 py-1 px-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                      currentSlide.description_gradient_stops === 3
+                                        ? 'bg-violet-600 text-white shadow-xs'
+                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                                    }`}
+                                  >
+                                    3 Colors
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                            <div className="flex-1">
-                              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                                Gradient To
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={currentSlide.description_gradient_to || '#64748b'}
-                                  onChange={(e) => updateCurrentSlide({ description_gradient_to: e.target.value })}
-                                  className="w-8 h-8 rounded border-none cursor-pointer"
-                                />
-                                <input
-                                  type="text"
-                                  value={currentSlide.description_gradient_to || '#64748b'}
-                                  onChange={(e) => updateCurrentSlide({ description_gradient_to: e.target.value })}
-                                  className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
-                                />
+
+                            <div className={`grid grid-cols-1 ${(currentSlide.description_gradient_stops || 2) === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  Stop 1: From
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={currentSlide.description_gradient_from || '#334155'}
+                                    onChange={(e) => updateCurrentSlide({ description_gradient_from: e.target.value })}
+                                    className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={currentSlide.description_gradient_from || '#334155'}
+                                    onChange={(e) => updateCurrentSlide({ description_gradient_from: e.target.value })}
+                                    className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                  />
+                                </div>
+                              </div>
+
+                              {(currentSlide.description_gradient_stops || 2) === 3 && (
+                                <div>
+                                  <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                    Stop 2: Via (Middle)
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="color"
+                                      value={currentSlide.description_gradient_via || '#475569'}
+                                      onChange={(e) => updateCurrentSlide({ description_gradient_via: e.target.value })}
+                                      className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={currentSlide.description_gradient_via || '#475569'}
+                                      onChange={(e) => updateCurrentSlide({ description_gradient_via: e.target.value })}
+                                      className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              <div>
+                                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                                  {(currentSlide.description_gradient_stops || 2) === 3 ? 'Stop 3: To' : 'Stop 2: To'}
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={currentSlide.description_gradient_to || '#64748b'}
+                                    onChange={(e) => updateCurrentSlide({ description_gradient_to: e.target.value })}
+                                    className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={currentSlide.description_gradient_to || '#64748b'}
+                                    onChange={(e) => updateCurrentSlide({ description_gradient_to: e.target.value })}
+                                    className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
                         ) : (
                           <div>
                             <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                              Solid Color
+                              Solid Description Color
                             </label>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 max-w-xs">
                               <input
                                 type="color"
-                                value={currentSlide.description_color}
+                                value={currentSlide.description_color || '#475569'}
                                 onChange={(e) => updateCurrentSlide({ description_color: e.target.value })}
-                                className="w-8 h-8 rounded border-none cursor-pointer"
+                                className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
                               />
                               <input
                                 type="text"
-                                value={currentSlide.description_color}
+                                value={currentSlide.description_color || '#475569'}
                                 onChange={(e) => updateCurrentSlide({ description_color: e.target.value })}
-                                className="w-full max-w-xs px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700"
+                                className="w-full px-2 py-1 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
                               />
                             </div>
                           </div>
@@ -2441,7 +3119,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
       {/* MODAL / DRAWER: CUSTOM WIDGET EDITOR                                      */}
       {/* ========================================================================= */}
       {typeof editingWidget === 'object' && editingWidget?.type === 'custom' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 animate-in fade-in duration-150">
           <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
             {(() => {
               const widgetId = editingWidget.id;
@@ -2666,7 +3344,7 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
       {/* MODAL / DRAWER: PAYABLES CALENDAR WIDGET                                  */}
       {/* ========================================================================= */}
       {editingWidget === 'payables' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 animate-in fade-in duration-150">
           <div className="w-full max-w-5xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between p-5 border-b border-slate-200/60 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
