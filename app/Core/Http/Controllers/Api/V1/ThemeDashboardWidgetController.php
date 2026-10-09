@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core\Http\Controllers\Api\V1;
 
 use App\Core\Models\AuditLog;
+use App\Core\Models\Module;
 use App\Core\Services\SettingsManager;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -29,15 +30,29 @@ class ThemeDashboardWidgetController extends Controller
      */
     public static function getDefaultConfig(): array
     {
+        $payablesActive = false;
+        try {
+            $payablesActive = Module::where('slug', 'payables-debt')
+                ->where('is_installed', true)
+                ->where('is_enabled', true)
+                ->exists();
+        } catch (\Throwable) {
+        }
+
+        $layout = [
+            'widget_profile',
+            'widget_banner',
+            'custom_api_modular',
+            'custom_rbac_security',
+            'custom_themeable_arch',
+        ];
+
+        if ($payablesActive) {
+            $layout[] = 'widget_payables_calendar';
+        }
+
         return [
-            'layout' => [
-                'widget_profile',
-                'widget_banner',
-                'custom_api_modular',
-                'custom_rbac_security',
-                'custom_themeable_arch',
-                'widget_payables_calendar',
-            ],
+            'layout' => $layout,
             'profile_widget' => [
                 'id' => 'widget_profile',
                 'enabled' => true,
@@ -332,11 +347,29 @@ class ThemeDashboardWidgetController extends Controller
         );
         $bannerWidget['size'] = $normalizeSize($bannerWidget['size'] ?? null, '4/4');
 
+        $payablesActive = false;
+        try {
+            $payablesActive = Module::where('slug', 'payables-debt')
+                ->where('is_installed', true)
+                ->where('is_enabled', true)
+                ->exists();
+        } catch (\Throwable) {
+        }
+
         $payablesWidget = array_merge(
             $defaults['payables_widget'],
             is_array($stored['payables_widget'] ?? null) ? $stored['payables_widget'] : []
         );
         $payablesWidget['size'] = $normalizeSize($payablesWidget['size'] ?? null, '2/4');
+
+        $layout = is_array($stored['layout'] ?? null)
+            ? array_values($stored['layout'])
+            : $defaults['layout'];
+
+        if (! $payablesActive) {
+            $layout = array_values(array_filter($layout, fn ($id) => $id !== 'widget_payables_calendar'));
+            $payablesWidget['enabled'] = false;
+        }
 
         $customWidgets = is_array($stored['custom_widgets'] ?? null)
             ? array_values($stored['custom_widgets'])
@@ -349,13 +382,14 @@ class ThemeDashboardWidgetController extends Controller
         unset($cw);
 
         return [
-            'layout' => is_array($stored['layout'] ?? null)
-                ? array_values($stored['layout'])
-                : $defaults['layout'],
+            'layout' => $layout,
             'profile_widget' => $profileWidget,
             'banner_widget' => $bannerWidget,
             'custom_widgets' => $customWidgets,
             'payables_widget' => $payablesWidget,
+            'modules_active' => [
+                'payables-debt' => $payablesActive,
+            ],
         ];
     }
 }

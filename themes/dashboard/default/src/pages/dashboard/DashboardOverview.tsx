@@ -50,6 +50,7 @@ export interface DashboardWidgetsConfig {
     size: SlotSize;
     height?: HeightLevel;
   };
+  modules_active?: Record<string, boolean>;
 }
 
 const CACHE_KEY = 'arx_dashboard_widgets_config';
@@ -61,8 +62,10 @@ const DEFAULT_CONFIG: DashboardWidgetsConfig = {
     'custom_api_modular',
     'custom_rbac_security',
     'custom_themeable_arch',
-    'widget_payables_calendar',
   ],
+  modules_active: {
+    'payables-debt': false,
+  },
   profile_widget: {
     id: 'widget_profile',
     enabled: true,
@@ -157,7 +160,7 @@ const DEFAULT_CONFIG: DashboardWidgetsConfig = {
   ],
   payables_widget: {
     id: 'widget_payables_calendar',
-    enabled: true,
+    enabled: false,
     size: '2/4',
     height: '2/2-raw',
   },
@@ -170,6 +173,13 @@ const getInitialConfig = (): DashboardWidgetsConfig => {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed?.layout && Array.isArray(parsed.layout)) {
+          // If payables module is not explicitly active in cache, remove widget from initial view
+          if (parsed.modules_active?.['payables-debt'] !== true) {
+            parsed.layout = parsed.layout.filter((id: string) => id !== 'widget_payables_calendar');
+            if (parsed.payables_widget) {
+              parsed.payables_widget.enabled = false;
+            }
+          }
           return parsed;
         }
       }
@@ -263,7 +273,7 @@ export const DashboardOverview: React.FC = () => {
       } else if (widgetId === 'widget_payables_calendar') {
         size = config.payables_widget.size;
         height = config.payables_widget.height || '2/2-raw';
-        enabled = config.payables_widget.enabled;
+        enabled = config.payables_widget.enabled && config.modules_active?.['payables-debt'] === true;
       } else {
         const cw = config.custom_widgets.find((w) => w.id === widgetId);
         if (cw) {
@@ -425,7 +435,7 @@ export const DashboardOverview: React.FC = () => {
 
           // 3. Liabilities & Debt Calendar Widget
           if (widgetId === 'widget_payables_calendar') {
-            if (!config.payables_widget.enabled) return null;
+            if (!config.payables_widget.enabled || config.modules_active?.['payables-debt'] !== true) return null;
             return (
               <div
                 key={widgetId}
