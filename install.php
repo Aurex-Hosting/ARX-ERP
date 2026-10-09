@@ -142,17 +142,20 @@ function linkThemeAssets(string $baseDir): void
         }
     }
 
-    $adminAssets = $baseDir.'/themes/admin/default/dist/assets';
-    $publicAdminDir = $baseDir.'/public/admin';
-    $publicAdminAssets = $baseDir.'/public/admin/assets';
+    $adminDist = $baseDir.'/themes/admin/default/dist';
+    $publicAdmin = $baseDir.'/public/admin';
 
-    if (is_dir($adminAssets)) {
-        if (! is_dir($publicAdminDir)) {
-            @mkdir($publicAdminDir, 0755, true);
-        }
-        if (! file_exists($publicAdminAssets)) {
+    if (is_dir($adminDist)) {
+        if (! file_exists($publicAdmin) && ! is_link($publicAdmin)) {
             if (PHP_OS_FAMILY !== 'Windows') {
-                @symlink($adminAssets, $publicAdminAssets);
+                @symlink($adminDist, $publicAdmin);
+            }
+        } elseif (is_dir($publicAdmin) && ! is_link($publicAdmin)) {
+            if (! file_exists($publicAdmin.'/index.html') && PHP_OS_FAMILY !== 'Windows') {
+                @symlink($adminDist.'/index.html', $publicAdmin.'/index.html');
+            }
+            if (! file_exists($publicAdmin.'/assets') && is_dir($adminDist.'/assets') && PHP_OS_FAMILY !== 'Windows') {
+                @symlink($adminDist.'/assets', $publicAdmin.'/assets');
             }
         }
     }
