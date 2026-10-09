@@ -1205,18 +1205,35 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                               banner_widget: { ...prev.banner_widget, enabled: !prev.banner_widget.enabled },
                             }));
                           } else if (widgetType === 'payables') {
-                            setConfig((prev) => {
-                              const newEnabled = !prev.payables_widget.enabled;
-                              let newLayout = [...prev.layout];
-                              if (newEnabled && !newLayout.includes('widget_payables_calendar')) {
+                            const newEnabled = !config.payables_widget.enabled;
+                            let newLayout = [...config.layout];
+                            if (newEnabled) {
+                              if (!newLayout.includes('widget_payables_calendar')) {
                                 newLayout.push('widget_payables_calendar');
                               }
-                              return {
-                                ...prev,
-                                layout: newLayout,
-                                payables_widget: { ...prev.payables_widget, enabled: newEnabled },
-                              };
-                            });
+                            } else {
+                              newLayout = newLayout.filter((id) => id !== 'widget_payables_calendar');
+                            }
+                            const updatedConfig = {
+                              ...config,
+                              layout: newLayout,
+                              payables_widget: { ...config.payables_widget, enabled: newEnabled },
+                            };
+                            setConfig(updatedConfig);
+                            try {
+                              const formData = new FormData();
+                              formData.append('config', JSON.stringify(updatedConfig));
+                              api.post('/admin/theme/dashboard-widgets', formData, {
+                                headers: { 'Content-Type': 'multipart/form-data' },
+                              }).then((res) => {
+                                if (res.data?.config) {
+                                  setConfig(res.data.config);
+                                  setOriginalConfigJson(JSON.stringify(res.data.config));
+                                }
+                              });
+                            } catch (e) {
+                              console.error('Failed to sync widget toggle', e);
+                            }
                           } else {
                             setConfig((prev) => ({
                               ...prev,
@@ -3395,23 +3412,39 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                   </div>
                 </div>
                 <div
-                  onClick={() =>
-                    setConfig((prev) => {
-                      const newEnabled = !prev.payables_widget.enabled;
-                      let newLayout = [...prev.layout];
-                      if (newEnabled && !newLayout.includes('widget_payables_calendar')) {
+                  onClick={async () => {
+                    const newEnabled = !config.payables_widget.enabled;
+                    let newLayout = [...config.layout];
+                    if (newEnabled) {
+                      if (!newLayout.includes('widget_payables_calendar')) {
                         newLayout.push('widget_payables_calendar');
                       }
-                      return {
-                        ...prev,
-                        layout: newLayout,
-                        payables_widget: {
-                          ...prev.payables_widget,
-                          enabled: newEnabled,
-                        },
-                      };
-                    })
-                  }
+                    } else {
+                      newLayout = newLayout.filter((id) => id !== 'widget_payables_calendar');
+                    }
+                    const updatedConfig = {
+                      ...config,
+                      layout: newLayout,
+                      payables_widget: {
+                        ...config.payables_widget,
+                        enabled: newEnabled,
+                      },
+                    };
+                    setConfig(updatedConfig);
+                    try {
+                      const formData = new FormData();
+                      formData.append('config', JSON.stringify(updatedConfig));
+                      const res = await api.post('/admin/theme/dashboard-widgets', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                      });
+                      if (res.data?.config) {
+                        setConfig(res.data.config);
+                        setOriginalConfigJson(JSON.stringify(res.data.config));
+                      }
+                    } catch (e) {
+                      console.error('Failed to sync widget toggle', e);
+                    }
+                  }}
                   className="flex items-center gap-2.5 cursor-pointer select-none"
                 >
                   <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -3623,10 +3656,13 @@ export const DashboardWidgetCustomizer: React.FC<DashboardWidgetCustomizerProps>
                 Changes apply immediately. Click Save Changes at top right to persist.
               </span>
               <button
-                onClick={() => setEditingWidget(null)}
+                onClick={() => {
+                  setEditingWidget(null);
+                  handleSave();
+                }}
                 className="px-5 py-2 text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow cursor-pointer transition-all"
               >
-                Apply Changes
+                Apply & Save Changes
               </button>
             </div>
           </div>

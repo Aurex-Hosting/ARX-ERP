@@ -2526,12 +2526,33 @@ export const PayablesDebtPage: React.FC = () => {
 
                   {/* Enable Toggle Switch */}
                   <div
-                    onClick={() =>
+                    onClick={async () => {
+                      const nextVal = !notifConfig.widget_calendar_enabled;
                       setNotifConfig((prev) => ({
                         ...prev,
-                        widget_calendar_enabled: !prev.widget_calendar_enabled,
-                      }))
-                    }
+                        widget_calendar_enabled: nextVal,
+                      }));
+                      try {
+                        const payload = {
+                          ...notifConfig,
+                          widget_calendar_enabled: nextVal,
+                          enable_email: mailHookEnabled ? notifConfig.enable_email : false,
+                        };
+                        await api.put('/payables-debt/notifications/config', payload);
+                        showToast(
+                          'success',
+                          nextVal
+                            ? 'Dashboard Overview Calendar Widget enabled!'
+                            : 'Dashboard Overview Calendar Widget disabled!'
+                        );
+                      } catch (err: any) {
+                        setNotifConfig((prev) => ({
+                          ...prev,
+                          widget_calendar_enabled: !nextVal,
+                        }));
+                        showToast('error', err.response?.data?.message || 'Failed to update widget status.');
+                      }
+                    }}
                     className="flex items-center gap-2.5 cursor-pointer select-none"
                   >
                     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">

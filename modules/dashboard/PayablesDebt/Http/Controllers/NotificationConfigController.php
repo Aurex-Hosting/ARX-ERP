@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Dashboard\PayablesDebt\Http\Controllers;
 
+use App\Core\Http\Controllers\Api\V1\ThemeDashboardWidgetController;
 use App\Core\Models\MailHookConfiguration;
 use App\Core\Services\SettingsManager;
 use App\Http\Controllers\Controller;
@@ -31,6 +32,20 @@ class NotificationConfigController extends Controller
         $this->authorize('liabilities.notifications.config');
 
         $config = PayableNotificationConfig::instance();
+
+        // Bidirectional sync with Theme Dashboard Widgets configuration
+        try {
+            $settingsManager = app(SettingsManager::class);
+            $themeConfig = $settingsManager->get('theme.dashboard_widgets', null);
+            if (is_array($themeConfig) && isset($themeConfig['payables_widget']['enabled'])) {
+                $themeEnabled = (bool) $themeConfig['payables_widget']['enabled'];
+                if ((bool) $config->widget_calendar_enabled !== $themeEnabled) {
+                    $config->update(['widget_calendar_enabled' => $themeEnabled]);
+                    $config->widget_calendar_enabled = $themeEnabled;
+                }
+            }
+        } catch (\Throwable) {
+        }
 
         // Check if dynamic mail hook trigger is enabled in SMTP triggers
         $mailHookEnabled = $this->isMailHookTriggerEnabled();
@@ -68,6 +83,44 @@ class NotificationConfigController extends Controller
         }
 
         $config->update($validated);
+
+        // Bidirectional sync with Theme Dashboard Widgets configuration
+        if ($request->has('widget_calendar_enabled')) {
+            $widgetEnabled = (bool) $request->boolean('widget_calendar_enabled');
+            try {
+                $settingsManager = app(SettingsManager::class);
+                $themeConfig = $settingsManager->get('theme.dashboard_widgets', null);
+                if (! is_array($themeConfig)) {
+                    $themeConfig = ThemeDashboardWidgetController::getDefaultConfig();
+                }
+
+                if (! isset($themeConfig['payables_widget']) || ! is_array($themeConfig['payables_widget'])) {
+                    $themeConfig['payables_widget'] = [
+                        'id' => 'widget_payables_calendar',
+                        'enabled' => $widgetEnabled,
+                        'size' => '2/4',
+                        'height' => '2/2-raw',
+                    ];
+                } else {
+                    $themeConfig['payables_widget']['enabled'] = $widgetEnabled;
+                }
+
+                if (! isset($themeConfig['layout']) || ! is_array($themeConfig['layout'])) {
+                    $themeConfig['layout'] = [];
+                }
+
+                if ($widgetEnabled) {
+                    if (! in_array('widget_payables_calendar', $themeConfig['layout'], true)) {
+                        $themeConfig['layout'][] = 'widget_payables_calendar';
+                    }
+                } else {
+                    $themeConfig['layout'] = array_values(array_filter($themeConfig['layout'], fn ($id) => $id !== 'widget_payables_calendar'));
+                }
+
+                $settingsManager->set('theme.dashboard_widgets', $themeConfig, 'theme', 'json');
+            } catch (\Throwable) {
+            }
+        }
 
         if ($mailHookEnabled && $request->has('enable_email')) {
             $enableEmail = (bool) $request->boolean('enable_email');

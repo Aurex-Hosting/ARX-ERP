@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Modules\Dashboard\PayablesDebt\Models\PayableNotificationConfig;
 
 /**
  * Controller managing Dashboard Overview widgets configuration, layout ordering,
@@ -282,12 +283,24 @@ class ThemeDashboardWidgetController extends Controller
         $newConfig['payables_widget']['size'] = $normalizeSize($newConfig['payables_widget']['size'] ?? null, '2/4');
 
         // Synchronize layout with payables widget toggle
-        if (! empty($newConfig['payables_widget']['enabled'])) {
+        $payablesEnabled = ! empty($newConfig['payables_widget']['enabled']);
+        if ($payablesEnabled) {
             if (! in_array('widget_payables_calendar', $newConfig['layout'], true)) {
                 $newConfig['layout'][] = 'widget_payables_calendar';
             }
         } else {
             $newConfig['layout'] = array_values(array_filter($newConfig['layout'], fn ($id) => $id !== 'widget_payables_calendar'));
+        }
+
+        // Bidirectional sync with Payables & Debt module settings
+        if (class_exists(PayableNotificationConfig::class)) {
+            try {
+                $payableConfig = PayableNotificationConfig::instance();
+                if ((bool) $payableConfig->widget_calendar_enabled !== $payablesEnabled) {
+                    $payableConfig->update(['widget_calendar_enabled' => $payablesEnabled]);
+                }
+            } catch (\Throwable) {
+            }
         }
         if (isset($newConfig['custom_widgets']) && is_array($newConfig['custom_widgets'])) {
             foreach ($newConfig['custom_widgets'] as &$cw) {
@@ -395,9 +408,24 @@ class ThemeDashboardWidgetController extends Controller
             $layout = array_values(array_filter($layout, fn ($id) => $id !== 'widget_payables_calendar'));
             $payablesWidget['enabled'] = false;
         } else {
+            // When module is active, ensure sync with PayableNotificationConfig
+            if (class_exists(PayableNotificationConfig::class)) {
+                try {
+                    $payableConfig = PayableNotificationConfig::instance();
+                    if (isset($payableConfig->widget_calendar_enabled)) {
+                        $payablesWidget['enabled'] = (bool) $payableConfig->widget_calendar_enabled;
+                    }
+                } catch (\Throwable) {
+                }
+            }
+
             // When module is active and widget is enabled, guarantee widget is in layout!
-            if (! empty($payablesWidget['enabled']) && ! in_array('widget_payables_calendar', $layout, true)) {
-                $layout[] = 'widget_payables_calendar';
+            if (! empty($payablesWidget['enabled'])) {
+                if (! in_array('widget_payables_calendar', $layout, true)) {
+                    $layout[] = 'widget_payables_calendar';
+                }
+            } else {
+                $layout = array_values(array_filter($layout, fn ($id) => $id !== 'widget_payables_calendar'));
             }
         }
 
