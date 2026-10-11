@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <img
             src={currentLogo}
             alt={settings.company_name || 'ARX-ERP'}
-            className="w-16 h-16 rounded-full shadow-md shrink-0 object-contain"
+            className="max-h-16 max-w-[180px] w-auto h-auto object-contain shrink-0"
           />
           <h1 className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white truncate max-w-[200px]">
             {settings.company_name || 'ARX-ERP'}
