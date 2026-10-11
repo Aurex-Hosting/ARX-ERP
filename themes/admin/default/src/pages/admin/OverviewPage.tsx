@@ -25,6 +25,7 @@ import {
   Server,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
 
 // Curated high-quality programming quotes as immediate render & offline fallback
@@ -56,6 +57,7 @@ interface OverviewPageProps {
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => {
   const { user } = useAuth();
+  const { currentLogo, settings } = useTheme();
 
   // Metrics Data States
   const [usersCount, setUsersCount] = useState<number>(0);
@@ -373,11 +375,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => 
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Core Systems Active</span>
-            </span>
+          <div className="flex items-center self-start sm:self-center shrink-0">
+            <img
+              src={currentLogo}
+              alt={settings.company_name || 'Logo'}
+              className="max-h-12 max-w-[160px] w-auto h-auto object-contain select-none"
+            />
           </div>
         </div>
 
