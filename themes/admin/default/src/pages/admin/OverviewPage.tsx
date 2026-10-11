@@ -28,8 +28,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
 
-// Curated high-quality programming quotes as immediate render & offline fallback
-const FALLBACK_QUOTES = [
+// Curated collection of famous software engineering quotes
+const PROGRAMMING_QUOTES = [
   { text: 'Talk is cheap. Show me the code.', author: 'Linus Torvalds' },
   { text: 'Simplicity is prerequisite for reliability.', author: 'Edsger W. Dijkstra' },
   { text: 'Any fool can write code that a computer can understand. Good programmers write code that humans can understand.', author: 'Martin Fowler' },
@@ -44,6 +44,12 @@ const FALLBACK_QUOTES = [
   { text: 'Experience is the name everyone gives to their mistakes.', author: 'Oscar Wilde' },
   { text: 'Good code is its own best documentation.', author: 'Steve McConnell' },
   { text: 'Computers are fast; developers are not.', author: 'Rob Pike' },
+  { text: 'Walking on water and developing software from a specification are easy if both are frozen.', author: 'Edward V. Berard' },
+  { text: 'Programs must be written for people to read, and only incidentally for machines to execute.', author: 'Harold Abelson' },
+  { text: 'Always code as if the guy who ends up maintaining your code will be a violent psychopath who knows where you live.', author: 'John Woods' },
+  { text: 'Give someone a program, you frustrate them for a day; teach them to program, you frustrate them for a lifetime.', author: 'David Leinweber' },
+  { text: 'Truth can only be found in one place: the code.', author: 'Robert C. Martin' },
+  { text: 'The most important property of a program is whether it accomplishes the intention of its user.', author: 'C.A.R. Hoare' },
 ];
 
 interface QuoteItem {
@@ -57,7 +63,7 @@ interface OverviewPageProps {
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => {
   const { user } = useAuth();
-  const { currentLogo, settings } = useTheme();
+  const { currentLogo, defaultLogo, settings } = useTheme();
 
   // Metrics Data States
   const [usersCount, setUsersCount] = useState<number>(0);
@@ -79,7 +85,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => 
 
   // Quote State
   const [quote, setQuote] = useState<QuoteItem>(() => {
-    return FALLBACK_QUOTES[Math.floor(Math.random() * FALLBACK_QUOTES.length)];
+    return PROGRAMMING_QUOTES[Math.floor(Math.random() * PROGRAMMING_QUOTES.length)];
   });
 
   // General Loading & UI State
@@ -113,35 +119,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => 
     return user.name?.trim() || 'Administrator';
   }, [user]);
 
-  // Fetch a random quote from external endpoint with smooth fallback (on page load only)
-  const fetchRandomQuote = useCallback(async () => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-      const res = await fetch('https://programming-quotesapi.vercel.app/api/random', {
-        signal: controller.signal,
-        headers: { Accept: 'application/json' },
-      });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.quote || data.text || data.en || data.content;
-        const author = data.author || 'Anonymous';
-        if (text && typeof text === 'string') {
-          setQuote({ text: text.trim(), author: author.trim() });
-          return;
-        }
-      }
-    } catch {
-      // Gracefully fall back to internal collection if blocked by CORS, timeout, or network
-    }
-
-    // Pick a different quote from fallback list
+  // Pick a random quote from our curated quotes list
+  const fetchRandomQuote = useCallback(() => {
     setQuote((prev) => {
-      const available = FALLBACK_QUOTES.filter((q) => q.text !== prev.text);
-      return available[Math.floor(Math.random() * available.length)] || FALLBACK_QUOTES[0];
+      const available = PROGRAMMING_QUOTES.filter((q) => q.text !== prev.text);
+      return available[Math.floor(Math.random() * available.length)] || PROGRAMMING_QUOTES[0];
     });
   }, []);
 
@@ -380,6 +362,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => 
               src={currentLogo}
               alt={settings.company_name || 'Logo'}
               className="max-h-12 max-w-[160px] w-auto h-auto object-contain select-none"
+              onError={(e) => {
+                if (defaultLogo && e.currentTarget.src !== defaultLogo) {
+                  e.currentTarget.src = defaultLogo;
+                }
+              }}
             />
           </div>
         </div>

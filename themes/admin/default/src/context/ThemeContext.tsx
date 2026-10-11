@@ -3,6 +3,8 @@ import api from '../services/api';
 import logoDarkSvg from '../assets/logo-dark.svg';
 import logoLightSvg from '../assets/logo-light.svg';
 
+export { logoDarkSvg, logoLightSvg };
+
 export type ThemeMode = 'dark' | 'light';
 
 export interface QuickLinkItem {
@@ -33,6 +35,7 @@ export interface ThemeContextType {
   setTheme: (mode: ThemeMode) => void;
   settings: GeneralSettings;
   currentLogo: string;
+  defaultLogo: string;
   refreshSettings: () => Promise<void>;
 }
 
@@ -159,13 +162,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMode(newMode);
   };
 
+  const defaultLogo = mode === 'dark' ? logoDarkSvg : logoLightSvg;
   // Compute active logo based on light/dark mode and uploaded custom logos
   const currentLogo = mode === 'dark'
     ? (settings.logo_dark || logoDarkSvg)
     : (settings.logo_light || logoLightSvg);
 
   return (
-    <ThemeContext.Provider value={{ mode, toggleTheme, setTheme, settings, currentLogo, refreshSettings }}>
+    <ThemeContext.Provider value={{ mode, toggleTheme, setTheme, settings, currentLogo, defaultLogo, refreshSettings }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -34,7 +34,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onClose,
 }) => {
   const { user } = useAuth();
-  const { currentLogo, settings } = useTheme();
+  const { currentLogo, defaultLogo, settings } = useTheme();
 
   const isSuperAdmin = Boolean(user?.is_super_admin);
   const perms = (user?.permissions as string[]) || [];
@@ -130,6 +130,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             src={currentLogo}
             alt={settings.company_name || 'ARX-ERP'}
             className="max-h-16 max-w-[180px] w-auto h-auto object-contain shrink-0"
+            onError={(e) => {
+              if (defaultLogo && e.currentTarget.src !== defaultLogo) {
+                e.currentTarget.src = defaultLogo;
+              }
+            }}
           />
           <h1 className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white truncate max-w-[200px]">
             {settings.company_name || 'ARX-ERP'}
