@@ -316,7 +316,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => 
           1. TOP BANNER: TIME-BASED GREETING & PROGRAMMING QUOTE
           Deep obsidian surface with subtle reference wave accent
           ======================================================== */}
-      <div className="p-6 sm:p-7 rounded-[22px] bg-white dark:bg-[#121026] border border-slate-200/80 dark:border-[#231f45] shadow-sm relative overflow-hidden space-y-4">
+      <div className="p-6 sm:p-7 rounded-[22px] bg-white dark:bg-[#121026] border border-slate-200/80 dark:border-[#231f45] shadow-sm relative overflow-hidden">
         {/* Background wave accent matching reference UI */}
         <div className="absolute inset-0 pointer-events-none opacity-20 dark:opacity-30 flex items-center justify-center overflow-hidden">
           <svg className="w-full h-28" viewBox="0 0 1200 120" fill="none" preserveAspectRatio="none">
@@ -336,53 +336,57 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ onNavigateTab }) => 
           </svg>
         </div>
 
-        {/* Top: Greeting & Current Date */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-[#6e44ff] text-white flex items-center justify-center shrink-0 shadow-sm">
-              <GreetingIcon className="w-6 h-6" />
+        {/* Main Content Row: Left Column (Greeting + Quote) & Right Column (Centered Bigger Logo) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
+          {/* Left Column: Greeting on top, Quote below */}
+          <div className="flex-1 min-w-0 space-y-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#6e44ff] text-white flex items-center justify-center shrink-0 shadow-sm">
+                <GreetingIcon className="w-6 h-6" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  {greetingInfo.text}, <span className="text-[#6e44ff] dark:text-[#8b6fff]">{adminFullName}</span>
+                </h1>
+                <p className="text-xs text-slate-500 dark:text-[#8e8aab] mt-0.5 font-medium">
+                  {new Date().toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {greetingInfo.text}, <span className="text-[#6e44ff] dark:text-[#8b6fff]">{adminFullName}</span>
-              </h1>
-              <p className="text-xs text-slate-500 dark:text-[#8e8aab] mt-0.5 font-medium">
-                {new Date().toLocaleDateString(undefined, {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </p>
+
+            {/* Programming Quote */}
+            <div className="pt-3 border-t border-slate-100 dark:border-[#231f45]">
+              <div className="flex items-start gap-2.5">
+                <Quote className="w-4 h-4 text-[#6e44ff] shrink-0 mt-0.5" />
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium italic text-slate-700 dark:text-slate-300 leading-relaxed">
+                    “{quote.text}”
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-400 dark:text-[#8e8aab]">
+                    — {quote.author}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center self-start sm:self-center shrink-0">
+          {/* Right Column: Prominent Logo, Vertically Centered with Card */}
+          <div className="flex items-center justify-center shrink-0 self-center sm:pl-4">
             <img
               src={currentLogo}
               alt={settings.company_name || 'Logo'}
-              className="max-h-12 max-w-[160px] w-auto h-auto object-contain select-none"
+              className="max-h-20 sm:max-h-24 md:max-h-28 max-w-[140px] sm:max-w-[180px] md:max-w-[220px] w-auto h-auto object-contain select-none transition-all duration-200"
               onError={(e) => {
                 if (defaultLogo && e.currentTarget.src !== defaultLogo) {
                   e.currentTarget.src = defaultLogo;
                 }
               }}
             />
-          </div>
-        </div>
-
-        {/* Below it: The Random Programming Quote */}
-        <div className="pt-3 border-t border-slate-100 dark:border-[#231f45] relative z-10">
-          <div className="flex items-start gap-2.5">
-            <Quote className="w-4 h-4 text-[#6e44ff] shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <p className="text-xs sm:text-sm font-medium italic text-slate-700 dark:text-slate-300 leading-relaxed">
-                “{quote.text}”
-              </p>
-              <p className="text-[11px] font-semibold text-slate-400 dark:text-[#8e8aab]">
-                — {quote.author}
-              </p>
-            </div>
           </div>
         </div>
       </div>
