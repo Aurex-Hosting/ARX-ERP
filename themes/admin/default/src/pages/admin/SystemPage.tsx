@@ -3,7 +3,6 @@ import {
   Zap,
   Cpu,
   Layers,
-  Terminal,
   Wrench,
   Puzzle,
   RefreshCw,
@@ -19,7 +18,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 
-type TabType = 'overview' | 'processes' | 'cache' | 'terminal' | 'maintenance' | 'extensions';
+type TabType = 'overview' | 'processes' | 'cache' | 'maintenance' | 'extensions';
 
 export const SystemPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -251,7 +250,6 @@ export const SystemPage: React.FC = () => {
     { id: 'overview', label: 'Overview', icon: Zap },
     { id: 'processes', label: 'Processes', icon: Cpu },
     { id: 'cache', label: 'Cache', icon: Layers },
-    { id: 'terminal', label: 'Terminal', icon: Terminal },
     { id: 'maintenance', label: 'Maintenance', icon: Wrench },
     { id: 'extensions', label: 'Extensions', icon: Puzzle },
   ];
@@ -1069,61 +1067,6 @@ export const SystemPage: React.FC = () => {
         </div>
       )}
 
-      {/* =========================================================================
-          TAB 4: TERMINAL (CLI Diagnostics - borderless)
-          ========================================================================= */}
-      {activeTab === 'terminal' && (
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Artisan Console Diagnostics</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Direct administrative command shortcuts for production operations.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 font-mono text-xs space-y-3">
-            <div className="flex items-center justify-between text-slate-500 pb-2">
-              <span className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                <span>Quick Run Commands</span>
-              </span>
-              <span className="text-[10px]">CLI Mode</span>
-            </div>
-
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-900 shadow-xs transition-colors">
-                <span className="text-slate-700 dark:text-slate-300">php artisan octane:status</span>
-                <button
-                  onClick={() => fetchProcesses(true)}
-                  className="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-medium cursor-pointer shadow-xs inline-flex items-center justify-center whitespace-nowrap"
-                >
-                  Run Probe
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-900 shadow-xs transition-colors">
-                <span className="text-slate-700 dark:text-slate-300">php artisan queue:restart</span>
-                <button
-                  onClick={handleRestartWorkers}
-                  className="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-medium cursor-pointer shadow-xs inline-flex items-center justify-center whitespace-nowrap"
-                >
-                  Dispatch Signal
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-900 shadow-xs transition-colors">
-                <span className="text-slate-700 dark:text-slate-300">php artisan optimize:clear</span>
-                <button
-                  onClick={() => handleClearCache('all', false)}
-                  className="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-medium cursor-pointer shadow-xs inline-flex items-center justify-center whitespace-nowrap"
-                >
-                  Execute
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* =========================================================================
           TAB 5: MAINTENANCE (borderless)
