@@ -738,8 +738,14 @@ export const PayablesDebtPage: React.FC = () => {
 
   const passedEvents = useMemo(() => {
     return filteredCalendarEvents
-      .filter((e) => e.timing === 'passed' || e.status === 'overdue' || e.status === 'paid')
+      .filter((e) => (e.timing === 'passed' || e.status === 'overdue') && e.status !== 'paid' && e.status !== 'cancelled')
       .sort((a, b) => (a.due_date < b.due_date ? 1 : -1));
+  }, [filteredCalendarEvents]);
+
+  const settledEvents = useMemo(() => {
+    return filteredCalendarEvents
+      .filter((e) => e.status === 'paid')
+      .sort((a, b) => (a.due_date > b.due_date ? 1 : -1));
   }, [filteredCalendarEvents]);
 
   const calendarSummary = useMemo(() => {
@@ -2689,23 +2695,23 @@ export const PayablesDebtPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Agenda / Stream View (Upcoming vs Passed Columns) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
-            {/* Upcoming Payments Stream */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm">
-              <div className="flex items-center justify-between pb-3">
+          {/* Agenda / Stream View (Upcoming vs Overdue vs Settled Columns) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
+            {/* 1. Upcoming Payments Stream */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <Clock className="w-4 h-4 text-violet-500" />
-                  <span>Upcoming Payment Schedule</span>
+                  <span>Upcoming Schedule</span>
                 </h3>
                 <span className="text-xs font-mono font-semibold text-violet-600 dark:text-violet-400">
                   {upcomingEvents.length} pending
                 </span>
               </div>
 
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 mt-2 max-h-[360px] overflow-y-auto pr-1">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 mt-2 max-h-[360px] overflow-y-auto pr-1 flex-1">
                 {upcomingEvents.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-6 text-center italic">
+                  <p className="text-xs text-slate-400 py-8 text-center italic">
                     No upcoming payments scheduled in this period.
                   </p>
                 ) : (
@@ -2750,22 +2756,22 @@ export const PayablesDebtPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Passed / Overdue Payments Stream */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm">
-              <div className="flex items-center justify-between pb-3">
+            {/* 2. Passed & Overdue Payments Stream (Strictly Unpaid Overdue) */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-rose-500" />
-                  <span>Passed & Overdue Payment Dates</span>
+                  <span>Passed & Overdue Dates</span>
                 </h3>
                 <span className="text-xs font-mono font-semibold text-rose-500">
-                  {passedEvents.filter((e) => e.status !== 'paid').length} overdue
+                  {passedEvents.length} overdue
                 </span>
               </div>
 
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 mt-2 max-h-[360px] overflow-y-auto pr-1">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 mt-2 max-h-[360px] overflow-y-auto pr-1 flex-1">
                 {passedEvents.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-6 text-center italic">
-                    No past payment dates found for this period.
+                  <p className="text-xs text-slate-400 py-8 text-center italic">
+                    All clear! No overdue payments found for this period.
                   </p>
                 ) : (
                   passedEvents.map((ev) => (
@@ -2785,7 +2791,7 @@ export const PayablesDebtPage: React.FC = () => {
                         <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
                           <span>{ev.payable?.vendor_name}</span>
                           <span>•</span>
-                          <span className="font-mono text-slate-500 font-semibold">{ev.due_date}</span>
+                          <span className="font-mono text-rose-500 font-semibold">{ev.due_date}</span>
                         </div>
                       </div>
 
@@ -2793,16 +2799,61 @@ export const PayablesDebtPage: React.FC = () => {
                         <div className="text-xs font-bold font-mono text-slate-900 dark:text-white">
                           {formatCurrency(ev.total_due, ev.payable?.currency)}
                         </div>
-                        <span className={`inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                          ev.status === 'paid'
-                            ? 'bg-emerald-500/10 text-emerald-500'
-                            : 'bg-rose-500/10 text-rose-500 font-bold'
-                        }`}>
-                          {ev.status === 'paid'
-                            ? 'Settled'
-                            : ev.days_diff < 0
-                            ? `${Math.abs(ev.days_diff)}d Overdue`
-                            : 'Passed Due'}
+                        <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-500/10 text-rose-500">
+                          {ev.days_diff < 0 ? `${Math.abs(ev.days_diff)}d Overdue` : 'Passed Due'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* 3. Settled & Paid Stream */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm flex flex-col">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <span>Settled & Paid</span>
+                </h3>
+                <span className="text-xs font-mono font-semibold text-emerald-500">
+                  {settledEvents.length} settled
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 mt-2 max-h-[360px] overflow-y-auto pr-1 flex-1">
+                {settledEvents.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-8 text-center italic">
+                    No settled payments recorded for this period.
+                  </p>
+                ) : (
+                  settledEvents.map((ev) => (
+                    <div
+                      key={ev.id}
+                      onClick={() => {
+                        setSelectedDayDateString(ev.due_date);
+                        setSelectedDayEvents(eventsByDate[ev.due_date] || [ev]);
+                        setShowDayModal(true);
+                      }}
+                      className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 px-2 rounded-xl transition-all cursor-pointer group"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {ev.payable?.title}
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                          <span>{ev.payable?.vendor_name}</span>
+                          <span>•</span>
+                          <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{ev.due_date}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-bold font-mono text-slate-900 dark:text-white">
+                          {formatCurrency(ev.total_due, ev.payable?.currency)}
+                        </div>
+                        <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-500">
+                          Settled
                         </span>
                       </div>
                     </div>
