@@ -8,6 +8,7 @@ use Modules\Dashboard\PayablesDebt\Http\Controllers\DocumentVaultController;
 use Modules\Dashboard\PayablesDebt\Http\Controllers\InstallmentController;
 use Modules\Dashboard\PayablesDebt\Http\Controllers\NotificationConfigController;
 use Modules\Dashboard\PayablesDebt\Http\Controllers\PayableController;
+use Modules\Dashboard\PayablesDebt\Http\Controllers\RecycleBinController;
 
 Route::prefix('payables-debt')->group(function (): void {
 
@@ -20,10 +21,22 @@ Route::prefix('payables-debt')->group(function (): void {
 
     // Installment actions
     Route::post('/installments/{installment}/mark-paid', [InstallmentController::class, 'markPaid'])->name('api.payables-debt.installments.mark-paid');
+    Route::delete('/installments/{installment}', [InstallmentController::class, 'destroy'])->name('api.payables-debt.installments.destroy');
 
     // Document actions
     Route::post('/documents/{document}/replace', [DocumentVaultController::class, 'replace'])->name('api.payables-debt.documents.replace');
     Route::get('/documents/{document}/stream', [DocumentVaultController::class, 'stream'])->name('api.payables-debt.documents.stream');
+    Route::delete('/documents/{document}', [DocumentVaultController::class, 'destroy'])->name('api.payables-debt.documents.destroy');
+
+    // Recycle Bin
+    Route::get('/recycle-bin', [RecycleBinController::class, 'index'])->name('api.payables-debt.recycle-bin.index');
+    Route::post('/recycle-bin/payables/{id}/restore', [RecycleBinController::class, 'restorePayable'])->name('api.payables-debt.recycle-bin.payables.restore');
+    Route::delete('/recycle-bin/payables/{id}', [RecycleBinController::class, 'forceDeletePayable'])->name('api.payables-debt.recycle-bin.payables.force-delete');
+    Route::post('/recycle-bin/documents/{id}/restore', [RecycleBinController::class, 'restoreDocument'])->name('api.payables-debt.recycle-bin.documents.restore');
+    Route::delete('/recycle-bin/documents/{id}', [RecycleBinController::class, 'forceDeleteDocument'])->name('api.payables-debt.recycle-bin.documents.force-delete');
+    Route::post('/recycle-bin/installments/{id}/restore', [RecycleBinController::class, 'restoreInstallment'])->name('api.payables-debt.recycle-bin.installments.restore');
+    Route::delete('/recycle-bin/installments/{id}', [RecycleBinController::class, 'forceDeleteInstallment'])->name('api.payables-debt.recycle-bin.installments.force-delete');
+    Route::post('/recycle-bin/empty', [RecycleBinController::class, 'emptyBin'])->name('api.payables-debt.recycle-bin.empty');
 
     // Currency Exchange
     Route::get('/currency/rates', [CurrencyExchangeController::class, 'rates'])->name('api.payables-debt.currency.rates');

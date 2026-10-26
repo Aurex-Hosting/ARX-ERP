@@ -194,7 +194,7 @@ class PayableController extends Controller
     }
 
     /**
-     * Permanently delete a payable (requires liabilities.service.delete).
+     * Move a payable to the recycle bin (soft delete).
      */
     public function destroy(Request $request, Payable $payable): JsonResponse
     {
@@ -206,15 +206,15 @@ class PayableController extends Controller
             'payable_id' => $payable->id,
             'user_id' => $request->user()->id,
             'action' => 'service_deleted',
-            'description' => "Permanently deleted: {$payable->title}. Reason: {$reason}",
+            'description' => "Moved to recycle bin: {$payable->title}. Reason: {$reason}",
             'ip_address' => $request->ip(),
             'old_values' => $payable->toArray(),
         ]);
 
-        $payable->forceDelete();
+        $payable->delete();
 
         return response()->json([
-            'message' => 'Payable permanently deleted.',
+            'message' => 'Payable moved to Recycle Bin. It will be permanently removed in 14 days.',
         ]);
     }
 

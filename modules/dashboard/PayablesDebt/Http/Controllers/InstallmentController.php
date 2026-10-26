@@ -251,4 +251,30 @@ class InstallmentController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Move an installment record to the recycle bin (soft delete).
+     */
+    public function destroy(Request $request, PayableInstallment $installment): JsonResponse
+    {
+        $this->authorize('liabilities.status.update');
+
+        $payableId = $installment->payable_id;
+        $num = $installment->installment_number;
+
+        $installment->delete();
+
+        PayableAuditLog::create([
+            'payable_id' => $payableId,
+            'user_id' => $request->user()->id,
+            'action' => 'installment_deleted',
+            'description' => "Moved installment #{$num} to recycle bin.",
+            'ip_address' => $request->ip(),
+            'old_values' => ['installment_id' => $installment->id, 'installment_number' => $num],
+        ]);
+
+        return response()->json([
+            'message' => 'Installment record moved to Recycle Bin. It will be permanently removed in 14 days.',
+        ]);
+    }
 }

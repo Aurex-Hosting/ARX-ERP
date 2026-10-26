@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Dashboard\PayablesDebt\Models\Payable;
 use Modules\Dashboard\PayablesDebt\Models\PayableDocument;
+use Modules\Dashboard\PayablesDebt\Models\PayableInstallment;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -80,13 +81,24 @@ class DocumentSecurityService
         $existingDocument->update(['is_active' => false]);
 
         // Store the new document
-        return $this->storeDocument(
+        $newDocument = $this->storeDocument(
             $existingDocument->payable,
             $newFile,
             $documentType,
             $uploadedBy,
             $existingDocument->installment_id,
         );
+
+        // Re-link any installments that referenced the old proof document
+        PayableInstallment::where('proof_document_id', $existingDocument->id)
+            ->update(['proof_document_id' => $newDocument->id]);
+
+        if ($existingDocument->installment_id) {
+            PayableInstallment::where('id', $existingDocument->installment_id)
+                ->update(['proof_document_id' => $newDocument->id]);
+        }
+
+        return $newDocument;
     }
 
     /**

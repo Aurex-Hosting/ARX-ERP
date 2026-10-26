@@ -27,6 +27,11 @@ import {
   Bell,
   Users,
   LayoutTemplate,
+  Trash2,
+  RotateCcw,
+  Upload,
+  Receipt,
+  FolderArchive,
 } from 'lucide-react';
 import api from '../../services/api';
 import type {
@@ -169,6 +174,64 @@ interface ByType {
   total_amount: string | number;
 }
 
+interface HistoricalDocument {
+  id: number;
+  payable_id: number;
+  installment_id?: number | null;
+  original_filename: string;
+  stored_filename: string;
+  file_size: number;
+  file_size_human?: string;
+  mime_type: string;
+  document_type: 'receipt' | 'bank_slip' | 'transfer_confirmation' | 'other';
+  uploaded_by?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+interface HistoricalInstallment {
+  id: number;
+  payable_id: number;
+  installment_number: number;
+  due_date: string;
+  base_amount: string | number;
+  interest_amount: string | number;
+  penalty_amount: string | number;
+  total_due: string | number;
+  status: 'scheduled' | 'due_soon' | 'overdue' | 'paid' | 'cancelled';
+  paid_at: string | null;
+  proof_document_id?: number | null;
+  proof_document?: HistoricalDocument | null;
+}
+
+interface RecycleBinItem {
+  id: number;
+  item_type: 'payable' | 'document' | 'installment';
+  type?: string;
+  title?: string;
+  original_filename?: string;
+  stored_filename?: string;
+  installment_number?: number;
+  vendor_name?: string;
+  category?: string;
+  currency?: string;
+  total_amount?: string | number;
+  amount_paid?: string | number;
+  total_due?: string | number;
+  status?: string;
+  document_type?: string;
+  file_size?: number;
+  deleted_at: string;
+  days_remaining: number;
+  payable?: {
+    id: number;
+    title: string;
+    vendor_name?: string;
+    type?: string;
+  } | null;
+}
+
 interface CustomCheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -216,10 +279,10 @@ export const PayablesDebtPage: React.FC = () => {
   const [byType, setByType] = useState<ByType[]>([]);
   const [recentItems, setRecentItems] = useState<PayableItem[]>([]);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'calendar' | 'invoices' | 'subscriptions' | 'loans' | 'settings' | 'create'
+    'overview' | 'calendar' | 'invoices' | 'subscriptions' | 'loans' | 'settings' | 'create' | 'recycle-bin'
   >('overview');
   const [previousTab, setPreviousTab] = useState<
-    'overview' | 'calendar' | 'invoices' | 'subscriptions' | 'loans' | 'settings'
+    'overview' | 'calendar' | 'invoices' | 'subscriptions' | 'loans' | 'settings' | 'recycle-bin'
   >('overview');
   const [filteredItems, setFilteredItems] = useState<PayableItem[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
@@ -299,6 +362,52 @@ export const PayablesDebtPage: React.FC = () => {
   const [cancelTargetItem, setCancelTargetItem] = useState<PayableItem | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // Recycle Bin State
+  const [recycleBinData, setRecycleBinData] = useState<{
+    payables: RecycleBinItem[];
+    documents: RecycleBinItem[];
+    installments: RecycleBinItem[];
+  }>({ payables: [], documents: [], installments: [] });
+  const [recycleBinLoading, setRecycleBinLoading] = useState(false);
+  const [recycleBinCount, setRecycleBinCount] = useState(0);
+  const [recycleBinFilter, setRecycleBinFilter] = useState<'all' | 'payables' | 'documents' | 'installments'>('all');
+  const [restoreTarget, setRestoreTarget] = useState<RecycleBinItem | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [forceDeleteTarget, setForceDeleteTarget] = useState<RecycleBinItem | null>(null);
+  const [isForceDeleting, setIsForceDeleting] = useState(false);
+  const [showEmptyBinModal, setShowEmptyBinModal] = useState(false);
+  const [isEmptyingBin, setIsEmptyingBin] = useState(false);
+
+  // Delete Payable to Recycle Bin Dialog State
+  const [deletePayableTarget, setDeletePayableTarget] = useState<PayableItem | null>(null);
+  const [isDeletingPayable, setIsDeletingPayable] = useState(false);
+
+  // History & Receipts Vault Modal State
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyTargetItem, setHistoryTargetItem] = useState<PayableItem | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyInstallments, setHistoryInstallments] = useState<HistoricalInstallment[]>([]);
+  const [historyDocuments, setHistoryDocuments] = useState<HistoricalDocument[]>([]);
+  const [historyActiveTab, setHistoryActiveTab] = useState<'documents' | 'installments' | 'upload'>('documents');
+  const [streamingDocId, setStreamingDocId] = useState<number | null>(null);
+
+  // Replace / Change Upload State
+  const [replaceTargetDoc, setReplaceTargetDoc] = useState<HistoricalDocument | null>(null);
+  const [replaceFile, setReplaceFile] = useState<File | null>(null);
+  const [replaceDocType, setReplaceDocType] = useState<'receipt' | 'bank_slip' | 'transfer_confirmation' | 'other'>('receipt');
+  const [isReplacingDoc, setIsReplacingDoc] = useState(false);
+
+  // Upload New Receipt in History Modal State
+  const [newUploadFile, setNewUploadFile] = useState<File | null>(null);
+  const [newUploadDocType, setNewUploadDocType] = useState<'receipt' | 'bank_slip' | 'transfer_confirmation' | 'other'>('receipt');
+  const [isUploadingNewDoc, setIsUploadingNewDoc] = useState(false);
+
+  // Delete Document / Installment to Bin State
+  const [deleteDocumentTarget, setDeleteDocumentTarget] = useState<HistoricalDocument | null>(null);
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false);
+  const [deleteInstallmentTarget, setDeleteInstallmentTarget] = useState<HistoricalInstallment | null>(null);
+  const [isDeletingInstallment, setIsDeletingInstallment] = useState(false);
+
   // Calendar State
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
@@ -339,6 +448,7 @@ export const PayablesDebtPage: React.FC = () => {
     fetchRecent();
     fetchRates();
     fetchCalendarEvents(calendarDate);
+    fetchRecycleBinCount();
   }, []);
 
   useEffect(() => {
@@ -346,7 +456,9 @@ export const PayablesDebtPage: React.FC = () => {
       fetchCalendarEvents(calendarDate);
     } else if (activeTab === 'settings') {
       fetchNotificationConfig();
-    } else if (activeTab !== 'overview') {
+    } else if (activeTab === 'recycle-bin') {
+      fetchRecycleBin();
+    } else if (activeTab !== 'overview' && activeTab !== 'create') {
       const type = activeTab === 'invoices' ? 'invoice' : activeTab === 'subscriptions' ? 'subscription' : 'loan';
       fetchByType(type);
     }
@@ -848,6 +960,243 @@ export const PayablesDebtPage: React.FC = () => {
       showToast('error', err.response?.data?.message || 'Failed to cancel service.');
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  // Recycle Bin & History Handlers
+  const fetchRecycleBin = async () => {
+    setRecycleBinLoading(true);
+    try {
+      const res = await api.get('/payables-debt/recycle-bin');
+      setRecycleBinData(res.data.data || { payables: [], documents: [], installments: [] });
+      setRecycleBinCount(res.data.meta?.total_count || 0);
+    } catch (err: any) {
+      console.error('Failed to load recycle bin:', err);
+      showToast('error', 'Failed to load recycle bin data.');
+    } finally {
+      setRecycleBinLoading(false);
+    }
+  };
+
+  const fetchRecycleBinCount = async () => {
+    try {
+      const res = await api.get('/payables-debt/recycle-bin');
+      setRecycleBinCount(res.data.meta?.total_count || 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDeletePayable = async () => {
+    if (!deletePayableTarget) return;
+    setIsDeletingPayable(true);
+    try {
+      await api.delete(`/payables-debt/${deletePayableTarget.id}`);
+      showToast('success', `'${deletePayableTarget.title}' moved to Recycle Bin (held for 14 days).`);
+      setDeletePayableTarget(null);
+      await fetchSummary();
+      await fetchRecent();
+      await fetchRecycleBinCount();
+      if (activeTab !== 'overview' && activeTab !== 'calendar' && activeTab !== 'settings' && activeTab !== 'recycle-bin') {
+        const type = activeTab === 'invoices' ? 'invoice' : activeTab === 'subscriptions' ? 'subscription' : 'loan';
+        await fetchByType(type);
+      }
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to move payable to recycle bin.');
+    } finally {
+      setIsDeletingPayable(false);
+    }
+  };
+
+  const openHistoryModal = async (item: PayableItem) => {
+    setHistoryTargetItem(item);
+    setHistoryActiveTab('documents');
+    setShowHistoryModal(true);
+    setHistoryLoading(true);
+    try {
+      const [instRes, docsRes] = await Promise.all([
+        api.get(`/payables-debt/${item.id}/installments`),
+        api.get(`/payables-debt/${item.id}/documents`),
+      ]);
+      setHistoryInstallments(instRes.data.data || []);
+      setHistoryDocuments(docsRes.data.data || []);
+    } catch (err: any) {
+      console.error('Failed to load historical data:', err);
+      showToast('error', 'Failed to load history and receipts.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const reloadHistoryData = async () => {
+    if (!historyTargetItem) return;
+    try {
+      const [instRes, docsRes] = await Promise.all([
+        api.get(`/payables-debt/${historyTargetItem.id}/installments`),
+        api.get(`/payables-debt/${historyTargetItem.id}/documents`),
+      ]);
+      setHistoryInstallments(instRes.data.data || []);
+      setHistoryDocuments(docsRes.data.data || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleStreamDocument = async (doc: HistoricalDocument) => {
+    setStreamingDocId(doc.id);
+    try {
+      const res = await api.get(`/payables-debt/documents/${doc.id}/stream`, { responseType: 'blob' });
+      const fileBlob = new Blob([res.data], { type: doc.mime_type || 'application/pdf' });
+      const blobUrl = URL.createObjectURL(fileBlob);
+      window.open(blobUrl, '_blank');
+    } catch (err: any) {
+      console.error('Failed to stream document:', err);
+      showToast('error', 'Could not open document from vault.');
+    } finally {
+      setStreamingDocId(null);
+    }
+  };
+
+  const handleReplaceDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replaceTargetDoc || !replaceFile) {
+      showToast('error', 'Please choose a replacement file.');
+      return;
+    }
+    setIsReplacingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append('document', replaceFile);
+      formData.append('document_type', replaceDocType);
+      await api.post(`/payables-debt/documents/${replaceTargetDoc.id}/replace`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showToast('success', 'Document replaced and vault updated successfully.');
+      setReplaceTargetDoc(null);
+      setReplaceFile(null);
+      await reloadHistoryData();
+      await fetchSummary();
+      await fetchRecent();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to replace document.');
+    } finally {
+      setIsReplacingDoc(false);
+    }
+  };
+
+  const handleUploadNewDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!historyTargetItem || !newUploadFile) {
+      showToast('error', 'Please select a document file to upload.');
+      return;
+    }
+    setIsUploadingNewDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append('document', newUploadFile);
+      formData.append('document_type', newUploadDocType);
+      await api.post(`/payables-debt/${historyTargetItem.id}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showToast('success', 'Receipt uploaded and stored in vault.');
+      setNewUploadFile(null);
+      setHistoryActiveTab('documents');
+      await reloadHistoryData();
+      await fetchSummary();
+      await fetchRecent();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to upload document.');
+    } finally {
+      setIsUploadingNewDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!deleteDocumentTarget) return;
+    setIsDeletingDoc(true);
+    try {
+      await api.delete(`/payables-debt/documents/${deleteDocumentTarget.id}`);
+      showToast('success', `'${deleteDocumentTarget.original_filename}' moved to Recycle Bin.`);
+      setDeleteDocumentTarget(null);
+      await fetchRecycleBinCount();
+      await reloadHistoryData();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to move receipt to recycle bin.');
+    } finally {
+      setIsDeletingDoc(false);
+    }
+  };
+
+  const handleDeleteInstallment = async () => {
+    if (!deleteInstallmentTarget) return;
+    setIsDeletingInstallment(true);
+    try {
+      await api.delete(`/payables-debt/installments/${deleteInstallmentTarget.id}`);
+      showToast('success', `Installment #${deleteInstallmentTarget.installment_number} moved to Recycle Bin.`);
+      setDeleteInstallmentTarget(null);
+      await fetchRecycleBinCount();
+      await reloadHistoryData();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to clear installment record.');
+    } finally {
+      setIsDeletingInstallment(false);
+    }
+  };
+
+  const handleRestoreFromBin = async (type: 'payable' | 'document' | 'installment', id: number) => {
+    setIsRestoring(true);
+    try {
+      const endpoint = type === 'payable'
+        ? `/payables-debt/recycle-bin/payables/${id}/restore`
+        : type === 'document'
+        ? `/payables-debt/recycle-bin/documents/${id}/restore`
+        : `/payables-debt/recycle-bin/installments/${id}/restore`;
+      const res = await api.post(endpoint);
+      showToast('success', res.data.message || 'Restored successfully.');
+      setRestoreTarget(null);
+      await fetchRecycleBin();
+      await fetchRecycleBinCount();
+      await fetchSummary();
+      await fetchRecent();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to restore item.');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const handleForceDeleteFromBin = async (type: 'payable' | 'document' | 'installment', id: number) => {
+    setIsForceDeleting(true);
+    try {
+      const endpoint = type === 'payable'
+        ? `/payables-debt/recycle-bin/payables/${id}`
+        : type === 'document'
+        ? `/payables-debt/recycle-bin/documents/${id}`
+        : `/payables-debt/recycle-bin/installments/${id}`;
+      const res = await api.delete(endpoint);
+      showToast('success', res.data.message || 'Permanently deleted.');
+      setForceDeleteTarget(null);
+      await fetchRecycleBin();
+      await fetchRecycleBinCount();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to permanently delete item.');
+    } finally {
+      setIsForceDeleting(false);
+    }
+  };
+
+  const handleEmptyRecycleBin = async () => {
+    setIsEmptyingBin(true);
+    try {
+      const res = await api.post('/payables-debt/recycle-bin/empty');
+      showToast('success', res.data.message || 'Recycle bin emptied.');
+      setShowEmptyBinModal(false);
+      await fetchRecycleBin();
+      await fetchRecycleBinCount();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Failed to empty recycle bin.');
+    } finally {
+      setIsEmptyingBin(false);
     }
   };
 
@@ -1989,6 +2338,7 @@ export const PayablesDebtPage: React.FC = () => {
             { key: 'invoices', label: 'Invoices', icon: FileText },
             { key: 'subscriptions', label: 'Subscriptions', icon: RefreshCw },
             { key: 'loans', label: 'Loans & Debt', icon: TrendingUp },
+            { key: 'recycle-bin', label: 'Recycle Bin', icon: Trash2 },
             { key: 'settings', label: 'Settings & Widget', icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -2008,6 +2358,11 @@ export const PayablesDebtPage: React.FC = () => {
                 <span>{tab.label}</span>
                 {tab.key === 'calendar' && calendarSummary.overdueCount > 0 && (
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                )}
+                {tab.key === 'recycle-bin' && recycleBinCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-mono text-[10px] font-bold">
+                    {recycleBinCount}
+                  </span>
                 )}
               </button>
             );
@@ -2999,6 +3354,259 @@ export const PayablesDebtPage: React.FC = () => {
               </div>
           )}
         </div>
+      ) : activeTab === 'recycle-bin' ? (
+        <div key="recycle-bin" className="space-y-6 animate-float-in">
+          {/* Header Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-2xl">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Recycle Bin Vault</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-mono font-bold">
+                    {recycleBinCount} Item{recycleBinCount === 1 ? '' : 's'}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Soft-deleted liabilities, historical installment cycles, and payment receipts.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={fetchRecycleBin}
+                disabled={recycleBinLoading}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${recycleBinLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowEmptyBinModal(true)}
+                disabled={recycleBinCount === 0 || recycleBinLoading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Empty Recycle Bin</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 14-Day Auto-Purge Policy Alert Banner */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div className="text-xs space-y-1">
+              <span className="font-bold text-amber-900 dark:text-amber-200 block">
+                14-Day Automated Retention Policy
+              </span>
+              <p className="text-amber-700 dark:text-amber-300 leading-relaxed">
+                Items moved to the Recycle Bin are safely held for <strong>14 days</strong> before being permanently purged from both the database and encrypted storage. You can restore records to active status or delete them permanently at any time.
+              </p>
+            </div>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { key: 'all', label: 'All Items', count: recycleBinCount },
+              { key: 'payables', label: 'Payables & Services', count: recycleBinData.payables.length },
+              { key: 'documents', label: 'Receipts & Proofs', count: recycleBinData.documents.length },
+              { key: 'installments', label: 'Historical Records', count: recycleBinData.installments.length },
+            ].map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setRecycleBinFilter(f.key as any)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  recycleBinFilter === f.key
+                    ? 'bg-violet-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span>{f.label}</span>
+                <span className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] ${
+                  recycleBinFilter === f.key
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                }`}>
+                  {f.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Items List */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm overflow-hidden">
+            {recycleBinLoading ? (
+              <div className="p-8 text-center space-y-3">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-violet-500" />
+                <p className="text-xs text-slate-400">Loading recycle bin...</p>
+              </div>
+            ) : (() => {
+              const allItems = [
+                ...recycleBinData.payables,
+                ...recycleBinData.documents,
+                ...recycleBinData.installments,
+              ].sort((a, b) => new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime());
+
+              const itemsToDisplay = recycleBinFilter === 'all'
+                ? allItems
+                : recycleBinFilter === 'payables'
+                ? recycleBinData.payables
+                : recycleBinFilter === 'documents'
+                ? recycleBinData.documents
+                : recycleBinData.installments;
+
+              if (itemsToDisplay.length === 0) {
+                return (
+                  <div className="p-12 text-center text-slate-400 space-y-2">
+                    <Trash2 className="w-8 h-8 mx-auto opacity-30 text-slate-400" />
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Recycle Bin is empty</p>
+                    <p className="text-xs text-slate-400">
+                      {recycleBinFilter === 'all'
+                        ? 'No deleted liabilities, receipts, or installments found.'
+                        : `No deleted ${recycleBinFilter} found.`}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {itemsToDisplay.map((item) => {
+                    const isPayable = item.item_type === 'payable';
+                    const isDoc = item.item_type === 'document';
+                    const isInst = item.item_type === 'installment';
+
+                    const itemTitle = isPayable
+                      ? item.title
+                      : isDoc
+                      ? item.original_filename
+                      : `Installment #${item.installment_number}`;
+
+                    const itemSubtitle = isPayable
+                      ? `Vendor: ${item.vendor_name || 'N/A'} • Category: ${item.category || 'General'}`
+                      : isDoc
+                      ? `Linked to: ${item.payable?.title || 'Unknown Payable'} (${item.payable?.vendor_name || 'Vendor'})`
+                      : `Linked to: ${item.payable?.title || 'Unknown Payable'} • Status: ${item.status}`;
+
+                    const typeBadgeLabel = isPayable
+                      ? item.type?.toUpperCase()
+                      : isDoc
+                      ? `RECEIPT / ${item.document_type?.toUpperCase()}`
+                      : 'HISTORICAL RECORD';
+
+                    return (
+                      <div
+                        key={`${item.item_type}-${item.id}`}
+                        className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <div className="flex items-start gap-3.5 min-w-0">
+                          <div className={`p-2.5 rounded-2xl shrink-0 mt-0.5 ${
+                            isPayable
+                              ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
+                              : isDoc
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          }`}>
+                            {isPayable ? (
+                              <CreditCard className="w-4 h-4" />
+                            ) : isDoc ? (
+                              <Receipt className="w-4 h-4" />
+                            ) : (
+                              <FileClock className="w-4 h-4" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                                {itemTitle}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                {typeBadgeLabel}
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-slate-400 truncate">
+                              {itemSubtitle}
+                            </p>
+
+                            <div className="flex items-center gap-3 text-[11px] text-slate-400 flex-wrap pt-0.5">
+                              <span>Deleted: {item.deleted_at ? new Date(item.deleted_at).toLocaleString() : 'Recently'}</span>
+                              {isPayable && item.total_amount && (
+                                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                                  Amount: {formatCurrency(item.total_amount, item.currency)}
+                                </span>
+                              )}
+                              {isInst && item.total_due && (
+                                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                                  Due: {item.total_due}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                          {/* Days remaining badge */}
+                          <div className="shrink-0">
+                            {item.days_remaining > 3 ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>{item.days_remaining} day{item.days_remaining === 1 ? '' : 's'} remaining</span>
+                              </span>
+                            ) : item.days_remaining > 0 ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>Purge in {item.days_remaining} day{item.days_remaining === 1 ? '' : 's'}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-rose-600 text-white animate-pulse">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                <span>Purge pending</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Restore Button */}
+                          <button
+                            type="button"
+                            onClick={() => setRestoreTarget(item)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-violet-600/10 text-violet-600 dark:text-violet-400 hover:bg-violet-600 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                            title="Restore back to active records"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Restore</span>
+                          </button>
+
+                          {/* Force Delete Button */}
+                          <button
+                            type="button"
+                            onClick={() => setForceDeleteTarget(item)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-xs font-semibold transition-all cursor-pointer"
+                            title="Permanently delete item"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete Permanently</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       ) : (
         <div key={`tab-${activeTab}`} className="space-y-4 animate-float-in">
           {/* Quick Calendar Teaser Card on Overview */}
@@ -3168,6 +3776,17 @@ export const PayablesDebtPage: React.FC = () => {
                         </a>
                       )}
 
+                      {/* View History & Receipts Button */}
+                      <button
+                        type="button"
+                        onClick={() => openHistoryModal(item)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                        title="View Historical Records & Receipts Vault"
+                      >
+                        <FileClock className="w-3 h-3" />
+                        <span>History & Receipts</span>
+                      </button>
+
                       {item.status !== 'paid' && item.status !== 'cancelled' && (
                         <button
                           onClick={() => {
@@ -3188,6 +3807,16 @@ export const PayablesDebtPage: React.FC = () => {
                           Cancel
                         </button>
                       )}
+
+                      {/* Move to Recycle Bin Button */}
+                      <button
+                        type="button"
+                        onClick={() => setDeletePayableTarget(item)}
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-xs transition-all cursor-pointer"
+                        title="Move to Recycle Bin (held for 14 days)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -3579,6 +4208,481 @@ export const PayablesDebtPage: React.FC = () => {
         onConfirm={handleConfirmCancel}
         onCancel={() => {
           if (!isCancelling) setCancelTargetItem(null);
+        }}
+      />
+
+      {/* Modal: History & Receipts Vault */}
+      {showHistoryModal && historyTargetItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full shadow-2xl p-6 max-h-[90vh] flex flex-col space-y-5 animate-in zoom-in-95 duration-150 border border-slate-200/80 dark:border-slate-800/80">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 pb-1">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+                  <FolderArchive className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      {historyTargetItem.title}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {historyTargetItem.type.toUpperCase()}
+                    </span>
+                    {statusBadge(historyTargetItem.status)}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Vendor: <strong className="text-slate-600 dark:text-slate-300">{historyTargetItem.vendor_name}</strong> • Category: {historyTargetItem.category}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistoryModal(false);
+                  setHistoryTargetItem(null);
+                  setReplaceTargetDoc(null);
+                }}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Stat Pill Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
+              <div>
+                <span className="text-[11px] text-slate-400 block">Total Liability</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">
+                  {formatCurrency(historyTargetItem.total_amount, historyTargetItem.currency)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 block">Amount Settled</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(historyTargetItem.amount_paid, historyTargetItem.currency)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 block">Outstanding</span>
+                <span className="font-mono font-bold text-rose-500">
+                  {formatCurrency(historyTargetItem.outstanding_balance ?? 0, historyTargetItem.currency)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 block">Vault Proofs</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  {historyDocuments.length} document{historyDocuments.length === 1 ? '' : 's'}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Subtabs */}
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+              <button
+                type="button"
+                onClick={() => setHistoryActiveTab('documents')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  historyActiveTab === 'documents'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Receipt className="w-3.5 h-3.5" />
+                <span>Receipts Vault ({historyDocuments.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setHistoryActiveTab('installments')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  historyActiveTab === 'installments'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <FileClock className="w-3.5 h-3.5" />
+                <span>Historical Billing Cycles ({historyInstallments.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setHistoryActiveTab('upload')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  historyActiveTab === 'upload'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>+ Upload New Receipt</span>
+              </button>
+            </div>
+
+            {/* Subtab Content Area */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 min-h-[220px]">
+              {historyLoading ? (
+                <div className="p-8 text-center space-y-2">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-500" />
+                  <p className="text-xs text-slate-400">Loading vault records...</p>
+                </div>
+              ) : historyActiveTab === 'documents' ? (
+                historyDocuments.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 space-y-2">
+                    <Receipt className="w-8 h-8 mx-auto opacity-30 text-indigo-500" />
+                    <p className="font-semibold text-xs text-slate-700 dark:text-slate-300">No documents or receipts stored yet</p>
+                    <p className="text-[11px]">Click "+ Upload New Receipt" to attach receipts or transfer slips.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {historyDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+                              <Receipt className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-xs text-slate-900 dark:text-white block truncate" title={doc.original_filename}>
+                                {doc.original_filename}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block truncate font-mono">
+                                {doc.stored_filename}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0">
+                            {doc.document_type.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-700/50">
+                          <span>
+                            {doc.file_size ? (doc.file_size > 1048576 ? (doc.file_size / 1048576).toFixed(1) + ' MB' : Math.round(doc.file_size / 1024) + ' KB') : '0 KB'}
+                          </span>
+                          <span>{doc.created_at ? new Date(doc.created_at).toLocaleDateString() : ''}</span>
+                        </div>
+
+                        {/* Document Actions */}
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          {/* View / Stream Document */}
+                          <button
+                            type="button"
+                            onClick={() => handleStreamDocument(doc)}
+                            disabled={streamingDocId === doc.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600/10 hover:bg-violet-600 hover:text-white text-violet-600 dark:text-violet-400 text-xs font-semibold transition-all cursor-pointer"
+                          >
+                            {streamingDocId === doc.id ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Eye className="w-3.5 h-3.5" />
+                            )}
+                            <span>View / Download</span>
+                          </button>
+
+                          {/* Change Upload / Replace */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplaceTargetDoc(doc);
+                              setReplaceDocType(doc.document_type);
+                              setReplaceFile(null);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200/70 dark:bg-slate-700/70 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all cursor-pointer"
+                            title="Change or replace this uploaded document"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Change Upload</span>
+                          </button>
+
+                          {/* Delete to Recycle Bin */}
+                          <button
+                            type="button"
+                            onClick={() => setDeleteDocumentTarget(doc)}
+                            className="p-1.5 rounded-xl bg-slate-200/50 dark:bg-slate-700/50 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 text-slate-400 text-xs transition-all cursor-pointer"
+                            title="Move receipt to Recycle Bin"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                /* Upload New Receipt Form */
+                <form onSubmit={handleUploadNewDocument} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 space-y-4 max-w-lg mx-auto">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <Upload className="w-4 h-4 text-indigo-500" />
+                      <span>Upload Proof / Receipt to Vault</span>
+                    </label>
+                    <p className="text-[11px] text-slate-400">
+                      Upload and preserve tax invoices, wire transfers, or physical receipt slips.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">
+                      Document Type
+                    </label>
+                    <select
+                      value={newUploadDocType}
+                      onChange={(e) => setNewUploadDocType(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold"
+                    >
+                      <option value="receipt">Payment Receipt</option>
+                      <option value="bank_slip">Bank Slip / Deposit Slip</option>
+                      <option value="transfer_confirmation">Transfer Confirmation</option>
+                      <option value="other">Other Supporting Document</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">
+                      Select File (PDF, PNG, JPG, WEBP, DOCX)
+                    </label>
+                    <input
+                      type="file"
+                      required
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                      onChange={(e) => setNewUploadFile(e.target.files?.[0] || null)}
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isUploadingNewDoc || !newUploadFile}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                    >
+                      {isUploadingNewDoc ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Upload & Vault</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">
+                Encrypted storage • 14-day recovery recycle bin supported
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistoryModal(false);
+                  setHistoryTargetItem(null);
+                  setReplaceTargetDoc(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Change Upload / Replace Receipt Dialog */}
+      {replaceTargetDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4 border border-slate-200/80 dark:border-slate-800/80 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                  <RefreshCw className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Change / Replace Upload</h3>
+                  <p className="text-[11px] text-slate-400">Replace vaulted receipt with a revised file</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setReplaceTargetDoc(null);
+                  setReplaceFile(null);
+                }}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs space-y-1">
+              <span className="text-[11px] text-slate-400 block">Current File:</span>
+              <span className="font-bold text-slate-900 dark:text-white block truncate">
+                {replaceTargetDoc.original_filename}
+              </span>
+            </div>
+
+            <form onSubmit={handleReplaceDocument} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 block mb-1">
+                  Document Type
+                </label>
+                <select
+                  value={replaceDocType}
+                  onChange={(e) => setReplaceDocType(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold"
+                >
+                  <option value="receipt">Payment Receipt</option>
+                  <option value="bank_slip">Bank Slip / Deposit Slip</option>
+                  <option value="transfer_confirmation">Transfer Confirmation</option>
+                  <option value="other">Other Supporting Document</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 block mb-1">
+                  Choose New Replacement File
+                </label>
+                <input
+                  type="file"
+                  required
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                  onChange={(e) => setReplaceFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-600 file:text-white hover:file:bg-violet-500 file:cursor-pointer cursor-pointer"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplaceTargetDoc(null);
+                    setReplaceFile(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReplacingDoc || !replaceFile}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                >
+                  {isReplacingDoc ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Replacing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Confirm Replacement</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm: Delete Payable to Recycle Bin */}
+      <ConfirmDialog
+        isOpen={!!deletePayableTarget}
+        title="Move to Recycle Bin"
+        message={`Are you sure you want to move '${deletePayableTarget?.title}' to the Recycle Bin? It will be safely held for 14 days before being permanently deleted.`}
+        confirmText="Move to Recycle Bin"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeletingPayable}
+        onConfirm={handleDeletePayable}
+        onCancel={() => {
+          if (!isDeletingPayable) setDeletePayableTarget(null);
+        }}
+      />
+
+      {/* Confirm: Delete Document to Recycle Bin */}
+      <ConfirmDialog
+        isOpen={!!deleteDocumentTarget}
+        title="Move Receipt to Recycle Bin"
+        message={`Move receipt '${deleteDocumentTarget?.original_filename}' to the Recycle Bin? It will be held for 14 days before being permanently deleted.`}
+        confirmText="Move to Recycle Bin"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeletingDoc}
+        onConfirm={handleDeleteDocument}
+        onCancel={() => {
+          if (!isDeletingDoc) setDeleteDocumentTarget(null);
+        }}
+      />
+
+      {/* Confirm: Clear Installment to Recycle Bin */}
+      <ConfirmDialog
+        isOpen={!!deleteInstallmentTarget}
+        title="Clear Installment Record"
+        message={`Move Installment #${deleteInstallmentTarget?.installment_number} to the Recycle Bin? Historical records will be preserved for 14 days.`}
+        confirmText="Clear Record"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeletingInstallment}
+        onConfirm={handleDeleteInstallment}
+        onCancel={() => {
+          if (!isDeletingInstallment) setDeleteInstallmentTarget(null);
+        }}
+      />
+
+      {/* Confirm: Restore Item */}
+      <ConfirmDialog
+        isOpen={!!restoreTarget}
+        title="Restore from Recycle Bin"
+        message={`Restore '${restoreTarget?.title || restoreTarget?.original_filename || `Installment #${restoreTarget?.installment_number}`}' back to active status?`}
+        confirmText="Restore Record"
+        cancelText="Cancel"
+        variant="primary"
+        loading={isRestoring}
+        onConfirm={() => restoreTarget && handleRestoreFromBin(restoreTarget.item_type, restoreTarget.id)}
+        onCancel={() => {
+          if (!isRestoring) setRestoreTarget(null);
+        }}
+      />
+
+      {/* Confirm: Permanent Delete */}
+      <ConfirmDialog
+        isOpen={!!forceDeleteTarget}
+        title="Permanently Delete Record"
+        message={`This will permanently wipe '${forceDeleteTarget?.title || forceDeleteTarget?.original_filename || `Installment #${forceDeleteTarget?.installment_number}`}' and delete any files from encrypted vault storage. This action cannot be undone.`}
+        confirmText="Delete Permanently"
+        cancelText="Keep in Bin"
+        variant="danger"
+        loading={isForceDeleting}
+        onConfirm={() => forceDeleteTarget && handleForceDeleteFromBin(forceDeleteTarget.item_type, forceDeleteTarget.id)}
+        onCancel={() => {
+          if (!isForceDeleting) setForceDeleteTarget(null);
+        }}
+      />
+
+      {/* Confirm: Empty Recycle Bin */}
+      <ConfirmDialog
+        isOpen={showEmptyBinModal}
+        title="Empty Entire Recycle Bin"
+        message="Are you sure you want to permanently delete all liabilities, installment records, and receipts currently in the Recycle Bin? All associated vault files will be destroyed. This cannot be undone."
+        confirmText="Empty Recycle Bin"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isEmptyingBin}
+        onConfirm={handleEmptyRecycleBin}
+        onCancel={() => {
+          if (!isEmptyingBin) setShowEmptyBinModal(false);
         }}
       />
     </div>

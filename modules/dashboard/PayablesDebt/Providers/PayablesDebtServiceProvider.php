@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Modules\Dashboard\PayablesDebt\Console\CalculateOverduePenaltiesCommand;
 use Modules\Dashboard\PayablesDebt\Console\ProcessRecurringPayablesCommand;
+use Modules\Dashboard\PayablesDebt\Console\PruneRecycleBinCommand;
 use Modules\Dashboard\PayablesDebt\Services\CurrencyRateService;
 use Modules\Dashboard\PayablesDebt\Services\DocumentSecurityService;
 use Modules\Dashboard\PayablesDebt\Services\LoanCalculationEngine;
@@ -50,6 +51,7 @@ class PayablesDebtServiceProvider extends ServiceProvider
             $this->commands([
                 ProcessRecurringPayablesCommand::class,
                 CalculateOverduePenaltiesCommand::class,
+                PruneRecycleBinCommand::class,
             ]);
         }
 
@@ -58,6 +60,7 @@ class PayablesDebtServiceProvider extends ServiceProvider
             $schedule = $this->app->make(Schedule::class);
             $schedule->command('payables:process-recurring')->daily()->at('01:00');
             $schedule->command('payables:calculate-penalties')->daily()->at('02:00');
+            $schedule->command('payables:prune-recycle-bin')->daily()->at('03:00');
         });
 
         // Register Mail Hook for payable notifications
