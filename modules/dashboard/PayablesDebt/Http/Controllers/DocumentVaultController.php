@@ -137,28 +137,12 @@ class DocumentVaultController extends Controller
     }
 
     /**
-     * Move a document to the recycle bin (soft delete).
+     * Delete document (prohibited for payment validation proofs).
      */
     public function destroy(Request $request, PayableDocument $document): JsonResponse
     {
-        $this->authorize('liabilities.doc.upload');
-
-        $payableId = $document->payable_id;
-        $filename = $document->stored_filename;
-
-        $document->delete();
-
-        PayableAuditLog::create([
-            'payable_id' => $payableId,
-            'user_id' => $request->user()->id,
-            'action' => 'document_deleted',
-            'description' => "Moved document '{$filename}' to recycle bin.",
-            'ip_address' => $request->ip(),
-            'old_values' => ['document_id' => $document->id, 'filename' => $filename],
-        ]);
-
         return response()->json([
-            'message' => 'Document moved to Recycle Bin. It will be permanently removed in 14 days.',
-        ]);
+            'message' => 'Payment receipts and verification slips cannot be deleted as they are required to validate payment settlement. Please use the replace option to upload a revised slip if needed.',
+        ], 422);
     }
 }

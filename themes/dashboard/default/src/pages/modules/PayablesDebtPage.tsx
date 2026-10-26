@@ -402,9 +402,7 @@ export const PayablesDebtPage: React.FC = () => {
   const [newUploadDocType, setNewUploadDocType] = useState<'receipt' | 'bank_slip' | 'transfer_confirmation' | 'other'>('receipt');
   const [isUploadingNewDoc, setIsUploadingNewDoc] = useState(false);
 
-  // Delete Document / Installment to Bin State
-  const [deleteDocumentTarget, setDeleteDocumentTarget] = useState<HistoricalDocument | null>(null);
-  const [isDeletingDoc, setIsDeletingDoc] = useState(false);
+  // Delete Installment to Bin State
   const [deleteInstallmentTarget, setDeleteInstallmentTarget] = useState<HistoricalInstallment | null>(null);
   const [isDeletingInstallment, setIsDeletingInstallment] = useState(false);
 
@@ -1114,22 +1112,6 @@ export const PayablesDebtPage: React.FC = () => {
       showToast('error', err.response?.data?.message || 'Failed to upload document.');
     } finally {
       setIsUploadingNewDoc(false);
-    }
-  };
-
-  const handleDeleteDocument = async () => {
-    if (!deleteDocumentTarget) return;
-    setIsDeletingDoc(true);
-    try {
-      await api.delete(`/payables-debt/documents/${deleteDocumentTarget.id}`);
-      showToast('success', `'${deleteDocumentTarget.original_filename}' moved to Recycle Bin.`);
-      setDeleteDocumentTarget(null);
-      await fetchRecycleBinCount();
-      await reloadHistoryData();
-    } catch (err: any) {
-      showToast('error', err.response?.data?.message || 'Failed to move receipt to recycle bin.');
-    } finally {
-      setIsDeletingDoc(false);
     }
   };
 
@@ -4444,20 +4426,10 @@ export const PayablesDebtPage: React.FC = () => {
                               setReplaceFile(null);
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200/70 dark:bg-slate-700/70 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all cursor-pointer"
-                            title="Change or replace this uploaded document"
+                            title="Upload a revised file to replace this receipt"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                             <span>Change Upload</span>
-                          </button>
-
-                          {/* Delete to Recycle Bin */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteDocumentTarget(doc)}
-                            className="p-1.5 rounded-xl bg-slate-200/50 dark:bg-slate-700/50 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 text-slate-400 text-xs transition-all cursor-pointer"
-                            title="Move receipt to Recycle Bin"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -4532,7 +4504,7 @@ export const PayablesDebtPage: React.FC = () => {
             {/* Modal Footer */}
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
-                Encrypted storage • 14-day recovery recycle bin supported
+                Payment verification slips are locked to validate settlements. Use "Change Upload" to revise or replace slips.
               </span>
               <button
                 type="button"
@@ -4659,21 +4631,6 @@ export const PayablesDebtPage: React.FC = () => {
         onConfirm={handleDeletePayable}
         onCancel={() => {
           if (!isDeletingPayable) setDeletePayableTarget(null);
-        }}
-      />
-
-      {/* Confirm: Delete Document to Recycle Bin */}
-      <ConfirmDialog
-        isOpen={!!deleteDocumentTarget}
-        title="Move Receipt to Recycle Bin"
-        message={`Move receipt '${deleteDocumentTarget?.original_filename}' to the Recycle Bin? It will be held for 14 days before being permanently deleted.`}
-        confirmText="Move to Recycle Bin"
-        cancelText="Cancel"
-        variant="danger"
-        loading={isDeletingDoc}
-        onConfirm={handleDeleteDocument}
-        onCancel={() => {
-          if (!isDeletingDoc) setDeleteDocumentTarget(null);
         }}
       />
 
