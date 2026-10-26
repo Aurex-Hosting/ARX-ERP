@@ -33,6 +33,7 @@ import type {
   WidgetSize,
   WidgetDesign,
 } from '../../components/widgets/PayablesCalendarWidget';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'LKR', 'INR'] as const;
 type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
@@ -293,6 +294,10 @@ export const PayablesDebtPage: React.FC = () => {
   const [payProofFile, setPayProofFile] = useState<File | null>(null);
   const [payDocType, setPayDocType] = useState<'receipt' | 'bank_slip' | 'transfer_confirmation' | 'other'>('receipt');
   const [isPaying, setIsPaying] = useState(false);
+
+  // Cancel Confirmation Modal State
+  const [cancelTargetItem, setCancelTargetItem] = useState<PayableItem | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Calendar State
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -825,22 +830,24 @@ export const PayablesDebtPage: React.FC = () => {
     }
   };
 
-  const handleCancelService = async (item: PayableItem) => {
-    if (!window.confirm(`Are you sure you want to cancel '${item.title}'? Historical records and receipts will remain preserved.`)) {
-      return;
-    }
+  const handleConfirmCancel = async () => {
+    if (!cancelTargetItem) return;
 
+    setIsCancelling(true);
     try {
-      await api.post(`/payables-debt/${item.id}/cancel`);
-      showToast('success', `'${item.title}' cancelled.`);
+      await api.post(`/payables-debt/${cancelTargetItem.id}/cancel`);
+      showToast('success', `'${cancelTargetItem.title}' cancelled.`);
+      setCancelTargetItem(null);
       await fetchSummary();
       await fetchRecent();
-      if (activeTab !== 'overview') {
+      if (activeTab !== 'overview' && activeTab !== 'calendar' && activeTab !== 'settings') {
         const type = activeTab === 'invoices' ? 'invoice' : activeTab === 'subscriptions' ? 'subscription' : 'loan';
         await fetchByType(type);
       }
     } catch (err: any) {
       showToast('error', err.response?.data?.message || 'Failed to cancel service.');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -3175,7 +3182,7 @@ export const PayablesDebtPage: React.FC = () => {
 
                       {item.status !== 'cancelled' && (item.type === 'subscription' || item.is_recurring) && (
                         <button
-                          onClick={() => handleCancelService(item)}
+                          onClick={() => setCancelTargetItem(item)}
                           className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-xs font-semibold transition-all cursor-pointer"
                         >
                           Cancel
@@ -3559,6 +3566,21 @@ export const PayablesDebtPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Cancel Service Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={!!cancelTargetItem}
+        title="Cancel Service / Recurring Liability"
+        message={`Are you sure you want to cancel '${cancelTargetItem?.title}'? Historical records and receipts will remain preserved.`}
+        confirmText="Yes, Cancel"
+        cancelText="Keep Active"
+        variant="warning"
+        loading={isCancelling}
+        onConfirm={handleConfirmCancel}
+        onCancel={() => {
+          if (!isCancelling) setCancelTargetItem(null);
+        }}
+      />
     </div>
   );
 };
